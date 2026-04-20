@@ -1,5 +1,13 @@
 import { SessionAnswer, SessionEvaluation, SessionQuestion } from "../../domain/interview/session/types";
 
+export type LlmProvider =
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "azure"
+  | "ollama"
+  | "custom";
+
 export interface TokenService {
   generateSecureToken(): Promise<string>;
   hash(rawToken: string): Promise<string>;
@@ -13,19 +21,40 @@ export interface IdGenerator {
   uuid(): string;
 }
 
-export interface ILlmService {
-  generateQuestion(input: {
+export interface LlmUsage {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    rawModel?: string;
+    rawProvider?: string;
+}
+
+export interface LlmEvaluationDraft {
+    score: number;
+    dimensionScores: Record<string, number>;
+    strengths: string[];
+    improvements: string[];
+    confidence: number;
+    usage?: LlmUsage;
+}
+
+export interface EvaluateAnswerInput {
+    question: string;
+    answer: { text: string };
+    rubric: { dimensions: { key: string; weight: number }[] };
+    language?: string;
+}
+
+export interface GenerateQuestionInput {
     role: string;
     level: "junior" | "mid" | "senior";
     language: string;
     previousQuestions: string[];
-  }): Promise<SessionQuestion>;
+}
 
-  evaluateAnswer(input: {
-    question: string;
-    answer: SessionAnswer;
-    rubric: { dimensions: { key: string; weight: number }[] };
-  }): Promise<SessionEvaluation>;
+export interface ILlmService {
+    generateQuestion(input: GenerateQuestionInput): Promise<{ text: string; usage?: LlmUsage }>;
+    evaluateAnswer(input: EvaluateAnswerInput): Promise<LlmEvaluationDraft>;
 }
 
 export interface IVoiceService {
