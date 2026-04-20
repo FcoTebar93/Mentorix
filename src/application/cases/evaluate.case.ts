@@ -24,8 +24,8 @@ export class EvaluateAnswerCase {
     }
 
     const session = new InterviewSession(stored);
-    const lastAnswer = session.state.answers.at(-1);
-    const lastQuestion = session.state.questions.at(-1);
+    const lastAnswer = session.state.answers[session.state.answers.length - 1];
+    const lastQuestion = session.state.questions[session.state.questions.length - 1];
 
     if (!lastAnswer || !lastQuestion) throw new Error("QUESTION_OR_ANSWER_MISSING");
 
