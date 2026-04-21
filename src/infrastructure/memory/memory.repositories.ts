@@ -38,3 +38,16 @@ export class InMemoryInterviewAccessLinkRepository implements InterviewAccessLin
       return value ? structuredClone(value) : null;
     }
 }
+
+export class InMemoryInterviewSessionRepository implements InterviewSessionRepository {
+    private readonly store = new Map<UUID, InterviewSessionProps>();
+  
+    async save(session: InterviewSessionProps): Promise<void> {
+      this.store.set(session.id, structuredClone(session));
+    }
+  
+    async getById(id: UUID): Promise<InterviewSessionProps | null> {
+      const value = this.store.get(id);
+      return value ? structuredClone(value) : null;
+    }
+}
