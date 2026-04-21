@@ -1,6 +1,6 @@
-import { InterviewAccessLink } from "../../domain/interview/link/types";
-import { InterviewSessionProps, UUID } from "../../domain/interview/session/types";
-import { InterviewTemplate } from "../../domain/interview/template/types";
+import type { InterviewAccessLink } from "../../domain/interview/link/types.js";
+import type { InterviewSessionProps, UUID } from "../../domain/interview/session/types.js";
+import type { InterviewTemplate } from "../../domain/interview/template/types.js";
 
 export interface InterviewTemplateRepository {
   save(template: InterviewTemplate): Promise<void>;

@@ -1,4 +1,4 @@
-import { SessionAnswer, SessionEvaluation, SessionQuestion } from "../../domain/interview/session/types";
+import type { SessionAnswer, SessionEvaluation, SessionQuestion } from "../../domain/interview/session/types.js";
 
 export type LlmProvider =
   | "openai"
