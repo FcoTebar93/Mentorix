@@ -4,18 +4,16 @@ import { StartSessionFromLinkCase } from "../application/cases/start.case.js";
 import { SubmitAnswerCase } from "../application/cases/submit.case.js";
 import { loadLlmConfig } from "./config.llm.js";
 import { createLlmService } from "./llm/providers/factory.js";
-import {
-  InMemoryInterviewAccessLinkRepository,
-  InMemoryInterviewSessionRepository,
-  InMemoryInterviewTemplateRepository,
-} from "./memory/memory.repositories.js";
 import { Sha256TokenService, SystemClock, SystemIdGenerator } from "./system/system.service.js";
 import { CreateTemplateCase } from "../application/cases/create-template.case.js";
 import { CreateAccessLinkCase } from "../application/cases/create-access-link.case.js";
+import { InMemoryInterviewSessionRepository } from "./memory/memory.repositories.js";
+import { PgInterviewTemplateRepository } from "./repositories/postgres/template.repository.js";
+import { PgInterviewAccessLinkRepository } from "./repositories/postgres/access-link.repository.js";
 
 export function buildContainer() {
-  const templates = new InMemoryInterviewTemplateRepository();
-  const links = new InMemoryInterviewAccessLinkRepository();
+  const templates = new PgInterviewTemplateRepository();
+  const links = new PgInterviewAccessLinkRepository();
   const sessions = new InMemoryInterviewSessionRepository();
 
   const clock = new SystemClock();
