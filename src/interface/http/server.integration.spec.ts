@@ -50,4 +50,24 @@ describe("HTTP interview flow", () => {
 
     await app.close();
   });
+
+  it("returns 404 when GET session does not exist", async () => {
+    const app = buildServer();
+  
+    const res = await app.inject({
+      method: "GET",
+      url: "/v1/interview-sessions/unknown",
+    });
+  
+    expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe("SESSION_NOT_FOUND");
+  
+    await app.close();
+  });
+  
+  it("returns 200 when GET session exists", async () => {
+    const app = buildServer();
+    
+    await app.close();
+  });
 });

@@ -37,6 +37,10 @@ const CompleteParamsSchema = z.object({
     sessionId: z.string().min(1),
 });
 
+const SessionParamsSchema = z.object({
+    sessionId: z.string().min(1),
+});
+
 export function buildServer() {
   const app = Fastify({ logger: true });
   const container = buildContainer();
@@ -203,6 +207,40 @@ export function buildServer() {
       }
   
       return reply.code(500).send({ code: "INTERNAL_ERROR", message: "Unexpected server error" });
+    }
+  });
+
+  app.get("/v1/interview-sessions/:sessionId", async (request, reply) => {
+    const parsedParams = SessionParamsSchema.safeParse(request.params);
+  
+    if (!parsedParams.success) {
+      return reply.code(400).send({
+        code: "INVALID_PARAMS",
+        message: "Invalid route params",
+        details: parsedParams.error.flatten(),
+      });
+    }
+  
+    try {
+      const session = await container.repositories.sessions.getById(parsedParams.data.sessionId);
+  
+      if (!session) {
+        return reply.code(404).send({
+          code: "SESSION_NOT_FOUND",
+          message: "Session not found",
+        });
+      }
+  
+      return reply.code(200).send({
+        code: "OK",
+        data: session,
+      });
+    } catch (error) {
+      request.log.error({ error }, "get session failed");
+      return reply.code(500).send({
+        code: "INTERNAL_ERROR",
+        message: "Unexpected server error",
+      });
     }
   });
 
