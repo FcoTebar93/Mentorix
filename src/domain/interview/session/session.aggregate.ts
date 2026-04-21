@@ -1,5 +1,5 @@
-import { AnswerNotAllowedInCurrentStateError, DuplicateEvaluationError, InvalidStateTransitionError, ParticipantValidationError, SessionAlreadyTerminatedError } from "./errors";
-import { InterviewSessionProps, InterviewSessionStatus, SessionAnswer, SessionEvaluation, SessionFeedback, SessionQuestion } from "./types";
+import { AnswerNotAllowedInCurrentStateError, DuplicateEvaluationError, InvalidStateTransitionError, ParticipantValidationError, SessionAlreadyTerminatedError } from "./errors.js";
+import type { InterviewSessionProps, InterviewSessionStatus, SessionAnswer, SessionEvaluation, SessionFeedback, SessionQuestion } from "./types.js";
   
   export class InterviewSession {
     private props: InterviewSessionProps;
@@ -46,7 +46,7 @@ import { InterviewSessionProps, InterviewSessionStatus, SessionAnswer, SessionEv
       this.assertStatus("EVALUATING");
   
       const alreadyEvaluated = this.props.evaluations.some(
-        (e) => e.answerId === evaluation.answerId
+        (e: SessionEvaluation) => e.answerId === evaluation.answerId
       );
       if (alreadyEvaluated) {
         throw new DuplicateEvaluationError("Answer already evaluated");

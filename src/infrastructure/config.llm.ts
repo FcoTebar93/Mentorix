@@ -1,4 +1,4 @@
-import { LlmProvider } from "../application/ports/services";
+import type { LlmProvider } from "../application/ports/services.js";
 
 export interface LlmProviderConfig {
   provider: LlmProvider;

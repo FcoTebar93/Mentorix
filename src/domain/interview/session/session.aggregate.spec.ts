@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { InterviewSession } from "./session.aggregate";
-import { InterviewSessionProps } from "./types";
+import { InterviewSession } from "./session.aggregate.js";
+import type { InterviewSessionProps } from "./types.js";
 
 const baseProps = (): InterviewSessionProps => ({
   id: "s1",

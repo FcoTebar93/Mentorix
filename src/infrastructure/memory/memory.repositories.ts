@@ -1,0 +1,40 @@
+import type {
+    InterviewAccessLinkRepository,
+    InterviewSessionRepository,
+    InterviewTemplateRepository,
+  } from "../../application/ports/repositories.js";
+import type { InterviewAccessLink } from "../../domain/interview/link/types.js";
+import type { InterviewSessionProps, UUID } from "../../domain/interview/session/types.js";
+import type { InterviewTemplate } from "../../domain/interview/template/types.js";
+
+export class InMemoryInterviewTemplateRepository implements InterviewTemplateRepository {
+    private readonly store = new Map<UUID, InterviewTemplate>();
+  
+    async save(template: InterviewTemplate): Promise<void> {
+      this.store.set(template.id, structuredClone(template));
+    }
+  
+    async getById(id: UUID): Promise<InterviewTemplate | null> {
+      const value = this.store.get(id);
+      return value ? structuredClone(value) : null;
+    }
+}
+  
+export class InMemoryInterviewAccessLinkRepository implements InterviewAccessLinkRepository {
+    private readonly store = new Map<UUID, InterviewAccessLink>();
+    private readonly byTokenHash = new Map<string, InterviewAccessLink>();
+
+    async save(link: InterviewAccessLink): Promise<void> {
+      this.store.set(link.id, structuredClone(link));
+      this.byTokenHash.set(link.tokenHash, structuredClone(link));
+    }
+    async getById(id: UUID): Promise<InterviewAccessLink | null> {
+      const value = this.store.get(id);
+      return value ? structuredClone(value) : null;
+    }
+  
+    async getByTokenHash(tokenHash: string): Promise<InterviewAccessLink | null> {
+        const value = this.byTokenHash.get(tokenHash);
+      return value ? structuredClone(value) : null;
+    }
+}
