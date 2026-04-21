@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildServer } from "./server.js";
 import type { InterviewSessionProps } from "../../domain/interview/session/types.js";
-import { buildContainer } from "../../infrastructure/container.js";
+import { buildTestContainer } from "../../infrastructure/test-container.js";
 
 describe("HTTP interview flow", () => {
   it("returns 400 when evaluate body is invalid", async () => {
@@ -93,7 +93,7 @@ describe("HTTP interview flow", () => {
   });
 
   it("returns 200 and transitions session to EVALUATING on valid submit", async () => {
-    const container = buildContainer();
+    const container = buildTestContainer();
   
     const seeded: InterviewSessionProps = {
       id: "s-submit-1",
@@ -175,9 +175,8 @@ describe("HTTP interview flow", () => {
   });
 
   it("returns 200 and transitions to FEEDBACKING on valid evaluate", async () => {
-    const container = buildContainer();
+    const container = buildTestContainer();
   
-    // seed session already in EVALUATING
     await container.repositories.sessions.save({
       id: "s-eval-1",
       templateId: "t1",
@@ -245,7 +244,7 @@ describe("HTTP interview flow", () => {
   });
 
   it("returns 200 and completes session when in FEEDBACKING and last question", async () => {
-    const container = buildContainer();
+    const container = buildTestContainer();
   
     await container.repositories.sessions.save({
       id: "s-complete-1",
@@ -307,7 +306,7 @@ describe("HTTP interview flow", () => {
   });
 
   it("returns 409 when complete is called from invalid state", async () => {
-    const container = buildContainer();
+    const container = buildTestContainer();
   
     await container.repositories.sessions.save({
       id: "s-complete-invalid",

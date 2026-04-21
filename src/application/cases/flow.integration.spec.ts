@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { CompleteSessionCase } from "./complete.case.js";
-import { EvaluateAnswerCase } from "./evaluate.case.js";
 import { SubmitAnswerCase } from "./submit.case.js";
-import type { ILlmService } from "../ports/services.js";
 import type { InterviewSessionProps } from "../../domain/interview/session/types.js";
 import { InMemoryInterviewSessionRepository } from "../../infrastructure/memory/memory.repositories.js";
 import { SystemClock, SystemIdGenerator } from "../../infrastructure/system/system.service.js";
+import { buildContainer } from "../../infrastructure/container.js";
+import { EvaluateAnswerCase } from "../../application/cases/evaluate.case.js";
+import type { ILlmService } from "../../application/ports/services.js";
 
 describe("Use case flow integration", () => {
   it("submit -> evaluate -> complete with seeded session", async () => {
     const sessions = new InMemoryInterviewSessionRepository();
     const ids = new SystemIdGenerator();
     const clock = new SystemClock();
+    const container = buildContainer();
 
     const llmStub = {
         async generateQuestion() {
@@ -27,6 +29,13 @@ describe("Use case flow integration", () => {
           };
         },
     };
+
+    container.useCases.evaluateAnswer = new EvaluateAnswerCase(
+        container.repositories.sessions,
+        llmStub,
+        container.services.ids,
+        container.services.clock
+    );
 
     const submitCase = new SubmitAnswerCase(sessions, ids, clock);
     const evaluateCase = new EvaluateAnswerCase(sessions, llmStub, ids, clock);
