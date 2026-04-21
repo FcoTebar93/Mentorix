@@ -1,6 +1,6 @@
-import { InterviewSession } from "../../domain/interview/session/session.aggregate";
-import { InterviewSessionRepository } from "../ports/repositories";
-import { Clock } from "../ports/services";
+import { InterviewSession } from "../../domain/interview/session/session.aggregate.js";
+import type { InterviewSessionRepository } from "../ports/repositories.js";
+import type { Clock } from "../ports/services.js";
 
 export interface CompleteSessionCommand {
   sessionId: string;

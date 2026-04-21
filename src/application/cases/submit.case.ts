@@ -1,7 +1,7 @@
-import { InterviewSession } from "../../domain/interview/session/session.aggregate";
-import { SessionAnswer } from "../../domain/interview/session/types";
-import { InterviewSessionRepository } from "../ports/repositories";
-import { Clock, IdGenerator } from "../ports/services";
+import { InterviewSession } from "../../domain/interview/session/session.aggregate.js";
+import type { SessionAnswer } from "../../domain/interview/session/types.js";
+import type { InterviewSessionRepository } from "../ports/repositories.js";
+import type { Clock, IdGenerator } from "../ports/services.js";
 
 export interface SubmitAnswerCommand {
   sessionId: string;

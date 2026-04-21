@@ -1,7 +1,7 @@
-import { InterviewSession } from "../../domain/interview/session/session.aggregate";
-import { InterviewSessionProps } from "../../domain/interview/session/types";
-import { InterviewAccessLinkRepository, InterviewSessionRepository, InterviewTemplateRepository } from "../ports/repositories";
-import { Clock, IdGenerator, TokenService } from "../ports/services";
+import { InterviewSession } from "../../domain/interview/session/session.aggregate.js";
+import type { InterviewSessionProps } from "../../domain/interview/session/types.js";
+import type { InterviewAccessLinkRepository, InterviewSessionRepository, InterviewTemplateRepository } from "../ports/repositories.js";
+import type { Clock, IdGenerator, TokenService } from "../ports/services.js";
 
 export interface StartFromLinkCommand {
   rawToken: string;
