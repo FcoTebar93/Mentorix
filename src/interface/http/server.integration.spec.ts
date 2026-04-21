@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildServer } from "./server.js";
+import type { InterviewSessionProps } from "../../domain/interview/session/types.js";
+import { buildContainer } from "../../infrastructure/container.js";
 
 describe("HTTP interview flow", () => {
   it("returns 400 when evaluate body is invalid", async () => {
@@ -68,6 +70,75 @@ describe("HTTP interview flow", () => {
   it("returns 200 when GET session exists", async () => {
     const app = buildServer();
     
+    await app.close();
+  });
+
+  it("returns 400 when submit answer body is invalid", async () => {
+    const app = buildServer();
+  
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/interview-sessions/s1/answers",
+      payload: {
+        questionId: "",
+        source: "text",
+        text: "",
+      },
+    });
+  
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe("INVALID_BODY");
+  
+    await app.close();
+  });
+
+  it("returns 200 and transitions session to EVALUATING on valid submit", async () => {
+    const container = buildContainer();
+  
+    const seeded: InterviewSessionProps = {
+      id: "s-submit-1",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "test" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "ASKING",
+      currentQuestionIndex: 1,
+      totalQuestions: 3,
+      questions: [
+        {
+          id: "q1",
+          index: 1,
+          text: "Explain SOLID principles.",
+          generatedByModel: "manual",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    };
+  
+    await container.repositories.sessions.save(seeded);
+    const app = buildServer(container);
+  
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/interview-sessions/s-submit-1/answers",
+      payload: {
+        questionId: "q1",
+        source: "text",
+        text: "SOLID improves maintainability.",
+      },
+    });
+  
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.code).toBe("OK");
+    expect(body.data.status).toBe("EVALUATING");
+    expect(body.data.answers.length).toBe(1);
+  
     await app.close();
   });
 });

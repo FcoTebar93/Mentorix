@@ -41,9 +41,9 @@ const SessionParamsSchema = z.object({
     sessionId: z.string().min(1),
 });
 
-export function buildServer() {
+export function buildServer(containerArg?: ReturnType<typeof buildContainer>) {
   const app = Fastify({ logger: true });
-  const container = buildContainer();
+  const container = containerArg ?? buildContainer();
 
   app.post("/v1/interview-sessions/:sessionId/evaluate", async (request, reply) => {
     const parsedParams = EvaluateParamsSchema.safeParse(request.params);
@@ -144,45 +144,6 @@ export function buildServer() {
     }
   });
 
-  app.post("/v1/interview-sessions/:sessionId/answers", async (request, reply) => {
-    const parsedParams = SubmitAnswerParamsSchema.safeParse(request.params);
-    if (!parsedParams.success) {
-      return reply.code(400).send({
-        code: "INVALID_PARAMS",
-        message: "Invalid route params",
-        details: parsedParams.error.flatten(),
-      });
-    }
-  
-    const parsedBody = SubmitAnswerBodySchema.safeParse(request.body);
-    if (!parsedBody.success) {
-      return reply.code(400).send({
-        code: "INVALID_BODY",
-        message: "Invalid request body",
-        details: parsedBody.error.flatten(),
-      });
-    }
-  
-    try {
-      const session = await container.useCases.submitAnswer.execute({
-        sessionId: parsedParams.data.sessionId,
-        questionId: parsedBody.data.questionId,
-        source: parsedBody.data.source,
-        text: parsedBody.data.text,
-      });
-  
-      return reply.code(200).send({ code: "OK", data: session });
-    } catch (error) {
-      request.log.error({ error }, "submit answer failed");
-  
-      if (error instanceof Error && error.message === "SESSION_NOT_FOUND") {
-        return reply.code(404).send({ code: "SESSION_NOT_FOUND", message: "Session not found" });
-      }
-  
-      return reply.code(500).send({ code: "INTERNAL_ERROR", message: "Unexpected server error" });
-    }
-  });
-
   app.post("/v1/interview-sessions/:sessionId/complete", async (request, reply) => {
     const parsedParams = CompleteParamsSchema.safeParse(request.params);
     if (!parsedParams.success) {
@@ -237,6 +198,66 @@ export function buildServer() {
       });
     } catch (error) {
       request.log.error({ error }, "get session failed");
+      return reply.code(500).send({
+        code: "INTERNAL_ERROR",
+        message: "Unexpected server error",
+      });
+    }
+  });
+
+  const SubmitAnswerParamsSchema = z.object({
+    sessionId: z.string().min(1),
+  });
+  
+  const SubmitAnswerBodySchema = z.object({
+    questionId: z.string().min(1),
+    source: z.enum(["voice", "text"]),
+    text: z.string().min(1),
+  });
+  
+  app.post("/v1/interview-sessions/:sessionId/answers", async (request, reply) => {
+    const parsedParams = SubmitAnswerParamsSchema.safeParse(request.params);
+    if (!parsedParams.success) {
+      return reply.code(400).send({
+        code: "INVALID_PARAMS",
+        message: "Invalid route params",
+        details: parsedParams.error.flatten(),
+      });
+    }
+  
+    const parsedBody = SubmitAnswerBodySchema.safeParse(request.body);
+    if (!parsedBody.success) {
+      return reply.code(400).send({
+        code: "INVALID_BODY",
+        message: "Invalid request body",
+        details: parsedBody.error.flatten(),
+      });
+    }
+  
+    try {
+      const session = await container.useCases.submitAnswer.execute({
+        sessionId: parsedParams.data.sessionId,
+        questionId: parsedBody.data.questionId,
+        source: parsedBody.data.source,
+        text: parsedBody.data.text,
+      });
+  
+      return reply.code(200).send({
+        code: "OK",
+        data: session,
+      });
+    } catch (error) {
+      request.log.error({ error }, "submit answer failed");
+  
+      if (error instanceof Error) {
+        if (error.message === "SESSION_NOT_FOUND") {
+          return reply.code(404).send({
+            code: "SESSION_NOT_FOUND",
+            message: "Session not found",
+          });
+        }
+      }
+  
       return reply.code(500).send({
         code: "INTERNAL_ERROR",
         message: "Unexpected server error",
