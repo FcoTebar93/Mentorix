@@ -1,0 +1,57 @@
+import { z } from "zod";
+import type { RegisterRoutes } from "./types.js";
+import { mapErrorToHttp } from "../mappers/http-error.js";
+
+const CreateTemplateBodySchema = z.object({
+  ownerUserId: z.string().min(1),
+  title: z.string().min(1),
+  role: z.string().min(1),
+  level: z.enum(["junior", "mid", "senior"]),
+  language: z.string().min(2),
+  totalQuestions: z.number().int().positive(),
+  rubric: z.object({
+    dimensions: z.array(
+      z.object({
+        key: z.string().min(1),
+        weight: z.number().positive(),
+        description: z.string().min(1),
+      })
+    ),
+    passThreshold: z.number().min(0).max(100),
+  }),
+  llmConfig: z.object({
+    provider: z.string().min(1),
+    model: z.string().min(1),
+    temperature: z.number().min(0).max(2),
+    maxTokensPerTurn: z.number().int().positive(),
+  }),
+  voiceConfig: z
+    .object({
+      sttProvider: z.string().min(1),
+      ttsProvider: z.string().min(1),
+      locale: z.string().min(2),
+    })
+    .optional(),
+});
+
+export const registerTemplateRoutes: RegisterRoutes = (app, container) => {
+  app.post("/v1/templates", async (request, reply) => {
+    const parsedBody = CreateTemplateBodySchema.safeParse(request.body);
+    if (!parsedBody.success) {
+      return reply.code(400).send({
+        code: "INVALID_BODY",
+        message: "Invalid request body",
+        details: parsedBody.error.flatten(),
+      });
+    }
+
+    try {
+      const template = await container.useCases.createTemplate.execute(parsedBody.data);
+      return reply.code(201).send({ code: "OK", data: template });
+    } catch (error) {
+      request.log.error({ error }, "create template failed");
+      const mapped = mapErrorToHttp(error);
+      return reply.code(mapped.statusCode).send({ code: mapped.code, message: mapped.message });
+    }
+  });
+};
