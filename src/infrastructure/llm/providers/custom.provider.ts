@@ -1,10 +1,10 @@
-import {
+import type {
     EvaluateAnswerInput,
     GenerateQuestionInput,
     ILlmService,
     LlmEvaluationDraft,
     LlmUsage,
-} from "../../../application/ports/services";
+} from "../../../application/ports/services.js";
   
 type CustomHttpConfig = {
     apiKey?: string;
