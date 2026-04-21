@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import { z } from "zod";
 import { buildContainer } from "../../infrastructure/container.js";
+import { InvalidStateTransitionError } from "../../domain/interview/session/errors.js";
 
 const EvaluateParamsSchema = z.object({
   sessionId: z.string().min(1),
@@ -113,13 +114,20 @@ export function buildServer(containerArg?: ReturnType<typeof buildContainer>) {
   
       return reply.code(200).send({ code: "OK", data: session });
     } catch (error) {
-      request.log.error({ error }, "complete session failed");
-  
-      if (error instanceof Error && error.message === "SESSION_NOT_FOUND") {
-        return reply.code(404).send({ code: "SESSION_NOT_FOUND", message: "Session not found" });
-      }
-  
-      return reply.code(500).send({ code: "INTERNAL_ERROR", message: "Unexpected server error" });
+        request.log.error({ error }, "complete session failed");
+      
+        if (error instanceof Error && error.message === "SESSION_NOT_FOUND") {
+          return reply.code(404).send({ code: "SESSION_NOT_FOUND", message: "Session not found" });
+        }
+      
+        if (error instanceof InvalidStateTransitionError) {
+          return reply.code(409).send({
+            code: "INVALID_STATE_TRANSITION",
+            message: error.message,
+          });
+        }
+      
+        return reply.code(500).send({ code: "INTERNAL_ERROR", message: "Unexpected server error" });
     }
   });
 

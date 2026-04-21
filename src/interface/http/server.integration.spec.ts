@@ -229,4 +229,113 @@ describe("HTTP interview flow", () => {
   
     await app.close();
   });
+
+  it("returns 404 when complete session does not exist", async () => {
+    const app = buildServer();
+  
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/interview-sessions/unknown/complete",
+    });
+  
+    expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe("SESSION_NOT_FOUND");
+  
+    await app.close();
+  });
+
+  it("returns 200 and completes session when in FEEDBACKING and last question", async () => {
+    const container = buildContainer();
+  
+    await container.repositories.sessions.save({
+      id: "s-complete-1",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "test" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "FEEDBACKING",
+      currentQuestionIndex: 1,
+      totalQuestions: 1,
+      questions: [
+        {
+          id: "q1",
+          index: 1,
+          text: "Explain DIP",
+          generatedByModel: "manual",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      answers: [
+        {
+          id: "a1",
+          questionId: "q1",
+          source: "text",
+          text: "Depend on abstractions",
+          receivedAt: new Date().toISOString(),
+        },
+      ],
+      evaluations: [
+        {
+          id: "e1",
+          answerId: "a1",
+          score: 80,
+          dimensionScores: { architecture: 80 },
+          strengths: ["clear"],
+          improvements: ["deeper"],
+          confidence: 0.9,
+          evaluatedAt: new Date().toISOString(),
+        },
+      ],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+  
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/interview-sessions/s-complete-1/complete",
+    });
+  
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.code).toBe("OK");
+    expect(body.data.status).toBe("COMPLETED");
+  
+    await app.close();
+  });
+
+  it("returns 409 when complete is called from invalid state", async () => {
+    const container = buildContainer();
+  
+    await container.repositories.sessions.save({
+      id: "s-complete-invalid",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "test" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "ASKING",
+      currentQuestionIndex: 1,
+      totalQuestions: 1,
+      questions: [],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+  
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/interview-sessions/s-complete-invalid/complete",
+    });
+  
+    expect(res.statusCode).toBe(409);
+    expect(res.json().code).toBe("INVALID_STATE_TRANSITION");
+  
+    await app.close();
+  });
 });
