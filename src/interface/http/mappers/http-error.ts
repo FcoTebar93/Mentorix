@@ -17,12 +17,42 @@ export function mapErrorToHttp(error: unknown): HttpErrorShape {
 
   if (error instanceof Error) {
     switch (error.message) {
+      case "INVALID_BODY":
+        return { statusCode: 400, code: "INVALID_BODY", message: "Invalid request body" };
+      case "INVALID_PARAMS":
+        return { statusCode: 400, code: "INVALID_PARAMS", message: "Invalid route params" };
+      case "INVALID_QUERY":
+        return { statusCode: 400, code: "INVALID_QUERY", message: "Invalid query params" };
+      case "INVALID_TOKEN":
+        return { statusCode: 401, code: "INVALID_TOKEN", message: "Invalid token" };
+      case "TOKEN_EXPIRED":
+        return { statusCode: 401, code: "TOKEN_EXPIRED", message: "Token expired" };
+      case "TOKEN_REVOKED":
+        return { statusCode: 401, code: "TOKEN_REVOKED", message: "Token revoked" };
+      case "TOKEN_NOT_FOUND":
+        return { statusCode: 401, code: "TOKEN_NOT_FOUND", message: "Token not found" };
+      case "TOKEN_INVALID":
+        return { statusCode: 401, code: "TOKEN_INVALID", message: "Token invalid" };
+      case "TOKEN_HASH_INVALID":
+        return { statusCode: 401, code: "TOKEN_HASH_INVALID", message: "Token hash invalid" };
+      case "TOKEN_HASH_EXPIRED":
+        return { statusCode: 401, code: "TOKEN_HASH_EXPIRED", message: "Token hash expired" };
+      case "TOKEN_HASH_REVOKED":
+        return { statusCode: 401, code: "TOKEN_HASH_REVOKED", message: "Token hash revoked" };
+      case "TOKEN_HASH_NOT_FOUND":
+        return { statusCode: 401, code: "TOKEN_HASH_NOT_FOUND", message: "Token hash not found" };
+      case "TOKEN_HASH_INVALID":
+        return { statusCode: 401, code: "TOKEN_HASH_INVALID", message: "Token hash invalid" };
+        case "ACCESS_LINK_NOT_ACTIVE":
+          return { statusCode: 403, code: "ACCESS_LINK_NOT_ACTIVE", message: "Access link not active" };
+        case "ACCESS_LINK_EXPIRED":
+          return { statusCode: 403, code: "ACCESS_LINK_EXPIRED", message: "Access link expired" };
+        case "ACCESS_LINK_MAX_USES_REACHED":
+          return { statusCode: 403, code: "ACCESS_LINK_MAX_USES_REACHED", message: "Access link max uses reached" };
       case "SESSION_NOT_FOUND":
         return { statusCode: 404, code: "SESSION_NOT_FOUND", message: "Session not found" };
       case "ACCESS_LINK_NOT_FOUND":
         return { statusCode: 404, code: "ACCESS_LINK_NOT_FOUND", message: "Access link not found" };
-      case "ACCESS_LINK_NOT_ACTIVE":
-      case "ACCESS_LINK_EXPIRED":
       case "ACCESS_LINK_MAX_USES_REACHED":
         return { statusCode: 410, code: error.message, message: "Access link not valid" };
       case "TEMPLATE_NOT_FOUND":
