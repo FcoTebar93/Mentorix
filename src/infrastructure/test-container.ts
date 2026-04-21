@@ -9,6 +9,8 @@ import {
   InMemoryInterviewTemplateRepository,
 } from "./memory/memory.repositories.js";
 import { Sha256TokenService, SystemClock, SystemIdGenerator } from "./system/system.service.js";
+import { CreateTemplateCase } from "../application/cases/create-template.case.js";
+import { CreateAccessLinkCase } from "../application/cases/create-access-link.case.js";
 
 type BuildTestContainerOptions = {
   llmService?: ILlmService;
@@ -40,6 +42,9 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
 
   const llmService = options.llmService ?? defaultLlmStub;
 
+  const createTemplate = new CreateTemplateCase(templates, ids, clock);
+  const createAccessLink = new CreateAccessLinkCase(links, templates, tokenService, ids, clock);
+
   const startSession = new StartSessionFromLinkCase(
     links,
     templates,
@@ -56,6 +61,6 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
   return {
     repositories: { templates, links, sessions },
     services: { clock, ids, tokenService, llmService },
-    useCases: { startSession, submitAnswer, evaluateAnswer, completeSession },
+    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession },
   };
 }

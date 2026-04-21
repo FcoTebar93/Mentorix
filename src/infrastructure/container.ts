@@ -10,23 +10,24 @@ import {
   InMemoryInterviewTemplateRepository,
 } from "./memory/memory.repositories.js";
 import { Sha256TokenService, SystemClock, SystemIdGenerator } from "./system/system.service.js";
+import { CreateTemplateCase } from "../application/cases/create-template.case.js";
+import { CreateAccessLinkCase } from "../application/cases/create-access-link.case.js";
 
 export function buildContainer() {
-  // Repositories
   const templates = new InMemoryInterviewTemplateRepository();
   const links = new InMemoryInterviewAccessLinkRepository();
   const sessions = new InMemoryInterviewSessionRepository();
 
-  // Infra services
   const clock = new SystemClock();
   const ids = new SystemIdGenerator();
   const tokenService = new Sha256TokenService();
 
-  // LLM
   const llmConfig = loadLlmConfig(process.env);
   const llmService = createLlmService(llmConfig);
 
-  // Use cases
+  const createTemplate = new CreateTemplateCase(templates, ids, clock);
+  const createAccessLink = new CreateAccessLinkCase(links, templates, tokenService, ids, clock);
+
   const startSession = new StartSessionFromLinkCase(
     links,
     templates,
@@ -43,6 +44,6 @@ export function buildContainer() {
   return {
     repositories: { templates, links, sessions },
     services: { clock, ids, tokenService, llmService },
-    useCases: { startSession, submitAnswer, evaluateAnswer, completeSession },
+    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession },
   };
 }
