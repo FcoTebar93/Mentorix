@@ -13,19 +13,19 @@ describe("Use case flow integration", () => {
     const ids = new SystemIdGenerator();
     const clock = new SystemClock();
 
-    const llmStub: ILlmService = {
-      async generateQuestion() {
-        return { text: "stub-question" };
-      },
-      async evaluateAnswer() {
-        return {
-          score: 84,
-          dimensionScores: { architecture: 84 },
-          strengths: ["structured answer"],
-          improvements: ["deeper technical trade-offs"],
-          confidence: 0.9,
-        };
-      },
+    const llmStub = {
+        async generateQuestion() {
+          return { text: "stub question" };
+        },
+        async evaluateAnswer() {
+          return {
+            score: 85,
+            dimensionScores: { architecture: 85 },
+            strengths: ["clear structure"],
+            improvements: ["more depth"],
+            confidence: 0.9,
+          };
+        },
     };
 
     const submitCase = new SubmitAnswerCase(sessions, ids, clock);

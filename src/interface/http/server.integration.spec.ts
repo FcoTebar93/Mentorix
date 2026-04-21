@@ -141,4 +141,92 @@ describe("HTTP interview flow", () => {
   
     await app.close();
   });
+
+  it("returns 400 when evaluate body is invalid", async () => {
+    const app = buildServer();
+  
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/interview-sessions/s1/evaluate",
+      payload: { rubricDimensions: [] },
+    });
+  
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe("INVALID_BODY");
+  
+    await app.close();
+  });
+
+  it("returns 404 when evaluate session does not exist", async () => {
+    const app = buildServer();
+  
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/interview-sessions/unknown/evaluate",
+      payload: {
+        rubricDimensions: [{ key: "architecture", weight: 1 }],
+      },
+    });
+  
+    expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe("SESSION_NOT_FOUND");
+  
+    await app.close();
+  });
+
+  it("returns 200 and transitions to FEEDBACKING on valid evaluate", async () => {
+    const container = buildContainer();
+  
+    // seed session already in EVALUATING
+    await container.repositories.sessions.save({
+      id: "s-eval-1",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "test" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "EVALUATING",
+      currentQuestionIndex: 1,
+      totalQuestions: 1,
+      questions: [
+        {
+          id: "q1",
+          index: 1,
+          text: "Explain clean architecture",
+          generatedByModel: "manual",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      answers: [
+        {
+          id: "a1",
+          questionId: "q1",
+          source: "text",
+          text: "Layers + dependency inversion",
+          receivedAt: new Date().toISOString(),
+        },
+      ],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+  
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/interview-sessions/s-eval-1/evaluate",
+      payload: {
+        rubricDimensions: [{ key: "architecture", weight: 1 }],
+      },
+    });
+  
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.code).toBe("OK");
+    expect(body.data.status).toBe("FEEDBACKING");
+    expect(body.data.evaluations.length).toBe(1);
+  
+    await app.close();
+  });
 });
