@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import { getDb } from "../../../infrastructure/db/client.js";
+import type { DbHealthPort } from "../../../application/ports/health.js";
 
-export function registerHealthRoutes(app: FastifyInstance) {
+export function registerHealthRoutes(app: FastifyInstance, dbHealth: DbHealthPort) {
   app.get("/health/live", async (_request, reply) => {
     return reply.code(200).send({
       code: "OK",
@@ -11,8 +11,7 @@ export function registerHealthRoutes(app: FastifyInstance) {
 
   app.get("/health/ready", async (request, reply) => {
     try {
-      const db = getDb();
-      await db.execute("select 1");
+      await dbHealth.check();
 
       return reply.code(200).send({
         code: "OK",
