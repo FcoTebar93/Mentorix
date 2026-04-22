@@ -174,4 +174,31 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
       });
     }
   });
+
+  app.get("/v1/interview-sessions/:sessionId/report", async (request, reply) => {
+    const parsedParams = SessionParamsSchema.safeParse(request.params);
+  
+    if (!parsedParams.success) {
+      return reply.code(400).send({
+        code: "INVALID_PARAMS",
+        message: "Invalid route params",
+        details: parsedParams.error.flatten(),
+      });
+    }
+  
+    try {
+      const report = await container.useCases.getSessionReport.execute({
+        sessionId: parsedParams.data.sessionId,
+      });
+  
+      return reply.code(200).send({
+        code: "OK",
+        data: report,
+      });
+    } catch (error) {
+      request.log.error({ error }, "get session report failed");
+      const mapped = mapErrorToHttp(error);
+      return reply.code(mapped.statusCode).send({ code: mapped.code, message: mapped.message });
+    }
+  });
 };

@@ -602,4 +602,86 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       await app.close();
     }
   });
+
+  it("returns 404 when session report does not exist", async () => {
+    const app = buildServer(buildTestContainer());
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/interview-sessions/unknown/report",
+      });
+  
+      expect(res.statusCode).toBe(404);
+      expect(res.json().code).toBe("SESSION_NOT_FOUND");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 200 with computed session report", async () => {
+    const container = buildTestContainer();
+  
+    await container.repositories.sessions.save({
+      id: "s-report-1",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "test" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "COMPLETED",
+      currentQuestionIndex: 2,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [
+        {
+          id: "e1",
+          answerId: "a1",
+          score: 80,
+          dimensionScores: { architecture: 80 },
+          strengths: ["claridad"],
+          improvements: ["profundidad"],
+          confidence: 0.9,
+          evaluatedAt: new Date().toISOString(),
+        },
+        {
+          id: "e2",
+          answerId: "a2",
+          score: 90,
+          dimensionScores: { architecture: 90 },
+          strengths: ["estructura"],
+          improvements: ["más ejemplos"],
+          confidence: 0.92,
+          evaluatedAt: new Date().toISOString(),
+        },
+      ],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+  
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/interview-sessions/s-report-1/report",
+      });
+  
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+  
+      expect(body.code).toBe("OK");
+      expect(body.data.sessionId).toBe("s-report-1");
+      expect(body.data.status).toBe("COMPLETED");
+      expect(body.data.overallScore).toBe(85);
+      expect(body.data.evaluatedAnswers).toBe(2);
+      expect(body.data.strengths).toEqual(expect.arrayContaining(["claridad", "estructura"]));
+      expect(body.data.improvements).toEqual(
+        expect.arrayContaining(["profundidad", "más ejemplos"])
+      );
+    } finally {
+      await app.close();
+    }
+  });
 });
