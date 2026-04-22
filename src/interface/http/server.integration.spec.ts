@@ -466,4 +466,111 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       await app.close();
     }
   });
+
+  it("returns 200 and lists sessions", async () => {
+    const container = buildTestContainer();
+  
+    await container.repositories.sessions.save({
+      id: "s-list-1",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "a" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "ASKING",
+      currentQuestionIndex: 1,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/interview-sessions",
+      });
+  
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.code).toBe("OK");
+      expect(Array.isArray(body.data)).toBe(true);
+      expect(body.data.length).toBeGreaterThan(0);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 200 and filters sessions by status", async () => {
+    const container = buildTestContainer();
+  
+    await container.repositories.sessions.save({
+      id: "s-list-2",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "a" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "COMPLETED",
+      currentQuestionIndex: 1,
+      totalQuestions: 1,
+      questions: [],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    await container.repositories.sessions.save({
+      id: "s-list-3",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "b" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "ASKING",
+      currentQuestionIndex: 1,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/interview-sessions?status=COMPLETED",
+      });
+  
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.code).toBe("OK");
+      expect(body.data.length).toBeGreaterThan(0);
+      expect(body.data.every((s: { status: string }) => s.status === "COMPLETED")).toBe(true);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 400 when list sessions query is invalid", async () => {
+    const app = buildServer(buildTestContainer());
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/interview-sessions?limit=0",
+      });
+  
+      expect(res.statusCode).toBe(400);
+      expect(res.json().code).toBe("INVALID_QUERY");
+    } finally {
+      await app.close();
+    }
+  });
 });
