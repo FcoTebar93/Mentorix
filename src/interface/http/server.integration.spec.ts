@@ -684,4 +684,133 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       await app.close();
     }
   });
+
+  it("GET /v1/interview-sessions/:id/report calcula dimensionAverages y confidenceAverage", async () => {
+    const container = buildTestContainer();
+    const sessionId = "s-report-2";
+  
+    await container.repositories.sessions.save({
+      id: sessionId,
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "test" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "COMPLETED",
+      currentQuestionIndex: 2,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [
+        {
+          id: "e1",
+          answerId: "a1",
+          score: 70,
+          dimensionScores: { communication: 60, problemSolving: 80 },
+          confidence: 0.8,
+          strengths: [],
+          improvements: [],
+          evaluatedAt: new Date().toISOString(),
+        },
+        {
+          id: "e2",
+          answerId: "a2",
+          score: 90,
+          dimensionScores: { communication: 80, problemSolving: 100 },
+          confidence: 0.6,
+          strengths: [],
+          improvements: [],
+          evaluatedAt: new Date().toISOString(),
+        },
+      ],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+  
+    try {
+      const reportRes = await app.inject({
+        method: "GET",
+        url: `/v1/interview-sessions/${sessionId}/report`,
+      });
+  
+      expect(reportRes.statusCode).toBe(200);
+      const body = reportRes.json();
+  
+      expect(body.code).toBe("OK");
+      expect(body.data.dimensionAverages).toEqual({
+        communication: 70,
+        problemSolving: 90,
+      });
+      expect(body.data.confidenceAverage).toBe(0.7);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("GET /v1/interview-sessions/:id/report incluye recommendation según overallScore", async () => {
+    const container = buildTestContainer();
+    const sessionId = "s-report-3";
+  
+    await container.repositories.sessions.save({
+      id: sessionId,
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "test" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "COMPLETED",
+      currentQuestionIndex: 2,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [
+        {
+          id: "e1",
+          answerId: "a1",
+          score: 60,
+          dimensionScores: { communication: 60 },
+          confidence: 0.7,
+          strengths: [],
+          improvements: [],
+          evaluatedAt: new Date().toISOString(),
+        },
+        {
+          id: "e2",
+          answerId: "a2",
+          score: 70,
+          dimensionScores: { communication: 70 },
+          confidence: 0.6,
+          strengths: [],
+          improvements: [],
+          evaluatedAt: new Date().toISOString(),
+        },
+      ],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+  
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: `/v1/interview-sessions/${sessionId}/report`,
+      });
+  
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+  
+      expect(body.code).toBe("OK");
+      expect(body.data.overallScore).toBe(65);
+      expect(body.data.recommendation).toBe(
+        "Recomendado con reservas: revisar dimensiones con menor puntaje."
+      );
+    } finally {
+      await app.close();
+    }
+  });
 });
