@@ -7,14 +7,14 @@ import { createLlmService } from "./llm/providers/factory.js";
 import { Sha256TokenService, SystemClock, SystemIdGenerator } from "./system/system.service.js";
 import { CreateTemplateCase } from "../application/cases/create-template.case.js";
 import { CreateAccessLinkCase } from "../application/cases/create-access-link.case.js";
-import { InMemoryInterviewSessionRepository } from "./memory/memory.repositories.js";
 import { PgInterviewTemplateRepository } from "./repositories/postgres/template.repository.js";
 import { PgInterviewAccessLinkRepository } from "./repositories/postgres/access-link.repository.js";
+import { PgInterviewSessionRepository } from "./repositories/postgres/session.repository.js";
 
 export function buildContainer() {
   const templates = new PgInterviewTemplateRepository();
   const links = new PgInterviewAccessLinkRepository();
-  const sessions = new InMemoryInterviewSessionRepository();
+  const sessions = new PgInterviewSessionRepository();
 
   const clock = new SystemClock();
   const ids = new SystemIdGenerator();
