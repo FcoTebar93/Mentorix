@@ -31,3 +31,8 @@ export const ListSessionsQuerySchema = z.object({
   status: z.string().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
+
+export const ListSessionReportsQuerySchema = z.object({
+  status: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});

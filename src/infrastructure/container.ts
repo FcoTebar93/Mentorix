@@ -12,6 +12,7 @@ import { PgInterviewAccessLinkRepository } from "./repositories/postgres/access-
 import { PgInterviewSessionRepository } from "./repositories/postgres/session.repository.js";
 import { ListSessionsCase } from "../application/cases/list-sessions.case.js";
 import { GetSessionReportCase } from "../application/cases/get-session.case.js";
+import { ListSessionReportsCase } from "../application/cases/list-reports.case.js";
 
 export function buildContainer() {
   const templates = new PgInterviewTemplateRepository();
@@ -42,10 +43,11 @@ export function buildContainer() {
   const completeSession = new CompleteSessionCase(sessions, clock);
   const listSessions = new ListSessionsCase(sessions);
   const getSessionReport = new GetSessionReportCase(sessions);
-
+  const listSessionReports = new ListSessionReportsCase(sessions);
+  
   return {
     repositories: { templates, links, sessions },
     services: { clock, ids, tokenService, llmService },
-    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport },
+    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports },
   };
 }

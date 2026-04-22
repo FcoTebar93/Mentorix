@@ -4,7 +4,8 @@ import {
   StartFromLinkBodySchema,
   SubmitAnswerBodySchema,
   EvaluateBodySchema,
-  ListSessionsQuerySchema
+  ListSessionsQuerySchema,
+  ListSessionReportsQuerySchema
 } from "../schemas/session.schema.js";
 import { mapErrorToHttp } from "../mappers/http-error.js";
 
@@ -199,6 +200,35 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
       request.log.error({ error }, "get session report failed");
       const mapped = mapErrorToHttp(error);
       return reply.code(mapped.statusCode).send({ code: mapped.code, message: mapped.message });
+    }
+  });
+
+  app.get("/v1/interview-sessions/reports", async (request, reply) => {
+    const parsedQuery = ListSessionReportsQuerySchema.safeParse(request.query);
+    if (!parsedQuery.success) {
+      return reply.code(400).send({
+        code: "INVALID_QUERY",
+        message: "Invalid query params",
+        details: parsedQuery.error.flatten(),
+      });
+    }
+  
+    try {
+      const reports = await container.useCases.listSessionReports.execute({
+        status: parsedQuery.data.status,
+        limit: parsedQuery.data.limit,
+      });
+  
+      return reply.code(200).send({
+        code: "OK",
+        data: reports,
+      });
+    } catch (error) {
+      request.log.error({ error }, "list session reports failed");
+      return reply.code(500).send({
+        code: "INTERNAL_ERROR",
+        message: "Unexpected server error",
+      });
     }
   });
 };

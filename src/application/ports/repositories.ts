@@ -18,9 +18,3 @@ export interface InterviewSessionRepository {
   getById(id: UUID): Promise<InterviewSessionProps | null>;
   list(params?: { status?: string; limit?: number }): Promise<InterviewSessionProps[]>;
 }
-
-export interface InterviewSessionRepository {
-  save(session: InterviewSessionProps): Promise<void>;
-  getById(id: UUID): Promise<InterviewSessionProps | null>;
-  list(params?: { status?: string; limit?: number }): Promise<InterviewSessionProps[]>;
-}
