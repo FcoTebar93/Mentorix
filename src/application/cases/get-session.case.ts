@@ -13,6 +13,9 @@ export interface SessionReport {
   improvements: string[];
   startedAt?: string;
   endedAt?: string;
+  dimensionAverages: Record<string, number>;
+  confidenceAverage: number | null;
+  recommendation: string;
 }
 
 export class GetSessionReportCase {
@@ -35,7 +38,6 @@ export class GetSessionReportCase {
       new Set(evaluations.flatMap((e) => e.improvements ?? []).filter(Boolean))
     );
   
-    // Dimension averages
     const dimensionAcc: Record<string, { sum: number; count: number }> = {};
     for (const ev of evaluations) {
       const ds = ev.dimensionScores ?? {};
@@ -52,7 +54,6 @@ export class GetSessionReportCase {
       dimensionAverages[key] = Math.round(acc.sum / acc.count);
     }
   
-    // Confidence average
     const confidences = evaluations
       .map((e) => e.confidence)
       .filter((c) => Number.isFinite(c));
@@ -60,15 +61,27 @@ export class GetSessionReportCase {
       confidences.length > 0
         ? Number((confidences.reduce((a, b) => a + b, 0) / confidences.length).toFixed(2)) : null;
 
+    const recommendation =
+      overallScore === null
+        ? "No hay suficientes evaluaciones para recomendar una decisión."
+        : overallScore >= 80
+        ? "Recomendado para avanzar a la siguiente etapa."
+        : overallScore >= 60
+        ? "Recomendado con reservas: revisar dimensiones con menor puntaje."
+        : "No recomendado por ahora: reforzar fundamentos antes de continuar.";
+
     return {
-      sessionId: session.id,
-      status: session.status,
-      overallScore: overallScore,
-      evaluatedAnswers: evaluations.length,
-      strengths: strengths,
-      improvements: improvements,
-      startedAt: session.startedAt,
-      endedAt: session.endedAt,
+        sessionId: session.id,
+        status: session.status,
+        overallScore: overallScore,
+        evaluatedAnswers: evaluations.length,
+        strengths: strengths,
+        improvements: improvements,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+        dimensionAverages: dimensionAverages,
+        confidenceAverage: confidenceAverage,
+        recommendation: recommendation,
     };
   }
 }
