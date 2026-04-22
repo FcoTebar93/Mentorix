@@ -28,3 +28,26 @@ export const interviewAccessLinksTable = pgTable("interview_access_links", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
 });
+
+export const interviewSessionsTable = pgTable("interview_sessions", {
+  id: text("id").primaryKey(),
+  templateId: text("template_id").notNull(),
+  ownerUserId: text("owner_user_id").notNull(),
+
+  participant: jsonb("participant").notNull(),
+  entryPoint: jsonb("entry_point").notNull(),
+
+  status: text("status").notNull(),
+  currentQuestionIndex: integer("current_question_index").notNull(),
+  totalQuestions: integer("total_questions").notNull(),
+
+  questions: jsonb("questions").notNull(),
+  answers: jsonb("answers").notNull(),
+  evaluations: jsonb("evaluations").notNull(),
+  feedbackItems: jsonb("feedback_items").notNull(),
+
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+
+  version: integer("version").notNull().default(0),
+});
