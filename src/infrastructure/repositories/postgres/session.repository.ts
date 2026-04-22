@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { InterviewSessionRepository } from "../../../application/ports/repositories.js";
 import type { InterviewSessionProps } from "../../../domain/interview/session/types.js";
 import { db } from "../../db/client.js";
@@ -69,5 +69,35 @@ export class PgInterviewSessionRepository implements InterviewSessionRepository 
       endedAt: row.endedAt ? row.endedAt.toISOString() : undefined,
       version: row.version,
     };
+  }
+
+  async list(params?: { status?: string; limit?: number }): Promise<InterviewSessionProps[]> {
+    const limit = Math.max(1, Math.min(params?.limit ?? 20, 100));
+    const status = params?.status;
+  
+    const rows = await db
+      .select()
+      .from(interviewSessionsTable)
+      .where(status ? eq(interviewSessionsTable.status, status) : undefined)
+      .orderBy(desc(interviewSessionsTable.startedAt))
+      .limit(limit);
+  
+    return rows.map((row) => ({
+      id: row.id,
+      templateId: row.templateId,
+      ownerUserId: row.ownerUserId,
+      participant: row.participant as InterviewSessionProps["participant"],
+      entryPoint: row.entryPoint as InterviewSessionProps["entryPoint"],
+      status: row.status as InterviewSessionProps["status"],
+      currentQuestionIndex: row.currentQuestionIndex,
+      totalQuestions: row.totalQuestions,
+      questions: row.questions as InterviewSessionProps["questions"],
+      answers: row.answers as InterviewSessionProps["answers"],
+      evaluations: row.evaluations as InterviewSessionProps["evaluations"],
+      feedbackItems: row.feedbackItems as InterviewSessionProps["feedbackItems"],
+      startedAt: row.startedAt ? row.startedAt.toISOString() : undefined,
+      endedAt: row.endedAt ? row.endedAt.toISOString() : undefined,
+      version: row.version,
+    }));
   }
 }

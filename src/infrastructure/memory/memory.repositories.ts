@@ -50,4 +50,16 @@ export class InMemoryInterviewSessionRepository implements InterviewSessionRepos
       const value = this.store.get(id);
       return value ? structuredClone(value) : null;
     }
+
+    async list(params?: { status?: string; limit?: number }): Promise<InterviewSessionProps[]> {
+      const status = params?.status;
+      const limit = params?.limit ?? 20;
+    
+      const items = Array.from(this.store.values())
+        .map((s) => structuredClone(s))
+        .filter((s) => (status ? s.status === status : true))
+        .slice(0, Math.max(0, Math.min(limit, 100)));
+    
+      return items;
+    }
 }
