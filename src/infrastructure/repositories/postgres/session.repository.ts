@@ -1,12 +1,12 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { InterviewSessionRepository } from "../../../application/ports/repositories.js";
 import type { InterviewSessionProps } from "../../../domain/interview/session/types.js";
-import { db } from "../../db/client.js";
+import { getDb } from "../../db/client.js";
 import { interviewSessionsTable } from "../../db/schema.js";
 
 export class PgInterviewSessionRepository implements InterviewSessionRepository {
   async save(session: InterviewSessionProps): Promise<void> {
-    await db
+    await getDb()
       .insert(interviewSessionsTable)
       .values({
         id: session.id,
@@ -43,7 +43,7 @@ export class PgInterviewSessionRepository implements InterviewSessionRepository 
   }
 
   async getById(id: string): Promise<InterviewSessionProps | null> {
-    const rows = await db
+    const rows = await getDb()
       .select()
       .from(interviewSessionsTable)
       .where(eq(interviewSessionsTable.id, id))
@@ -75,7 +75,7 @@ export class PgInterviewSessionRepository implements InterviewSessionRepository 
     const limit = Math.max(1, Math.min(params?.limit ?? 20, 100));
     const status = params?.status;
   
-    const rows = await db
+    const rows = await getDb()
       .select()
       .from(interviewSessionsTable)
       .where(status ? eq(interviewSessionsTable.status, status) : undefined)

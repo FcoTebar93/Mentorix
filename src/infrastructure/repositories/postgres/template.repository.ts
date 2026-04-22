@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import type { InterviewTemplateRepository } from "../../../application/ports/repositories.js";
 import type { InterviewTemplate } from "../../../domain/interview/template/types.js";
-import { db } from "../../db/client.js";
+import { getDb } from "../../db/client.js";
 import { interviewTemplatesTable } from "../../db/schema.js";
 
 export class PgInterviewTemplateRepository implements InterviewTemplateRepository {
   async save(template: InterviewTemplate): Promise<void> {
-    await db
+    await getDb()
       .insert(interviewTemplatesTable)
       .values({
         id: template.id,
@@ -42,7 +42,7 @@ export class PgInterviewTemplateRepository implements InterviewTemplateRepositor
   }
 
   async getById(id: string): Promise<InterviewTemplate | null> {
-    const rows = await db
+    const rows = await getDb()
       .select()
       .from(interviewTemplatesTable)
       .where(eq(interviewTemplatesTable.id, id))

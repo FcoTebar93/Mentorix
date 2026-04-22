@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import type { InterviewAccessLinkRepository } from "../../../application/ports/repositories.js";
 import type { InterviewAccessLink } from "../../../domain/interview/link/types.js";
-import { db } from "../../db/client.js";
+import { getDb } from "../../db/client.js";
 import { interviewAccessLinksTable } from "../../db/schema.js";
 
 export class PgInterviewAccessLinkRepository implements InterviewAccessLinkRepository {
   async save(link: InterviewAccessLink): Promise<void> {
-    await db
+    await getDb()
       .insert(interviewAccessLinksTable)
       .values({
         id: link.id,
@@ -33,7 +33,7 @@ export class PgInterviewAccessLinkRepository implements InterviewAccessLinkRepos
   }
 
   async getById(id: string): Promise<InterviewAccessLink | null> {
-    const rows = await db
+    const rows = await getDb()
       .select()
       .from(interviewAccessLinksTable)
       .where(eq(interviewAccessLinksTable.id, id))
@@ -44,7 +44,7 @@ export class PgInterviewAccessLinkRepository implements InterviewAccessLinkRepos
   }
 
   async getByTokenHash(tokenHash: string): Promise<InterviewAccessLink | null> {
-    const rows = await db
+    const rows = await getDb()
       .select()
       .from(interviewAccessLinksTable)
       .where(eq(interviewAccessLinksTable.tokenHash, tokenHash))
