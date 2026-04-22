@@ -11,6 +11,7 @@ import {
 import { Sha256TokenService, SystemClock, SystemIdGenerator } from "./system/system.service.js";
 import { CreateTemplateCase } from "../application/cases/create-template.case.js";
 import { CreateAccessLinkCase } from "../application/cases/create-access-link.case.js";
+import { ListSessionsCase } from "../application/cases/list-sessions.case.js";
 
 type BuildTestContainerOptions = {
   llmService?: ILlmService;
@@ -57,10 +58,11 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
   const submitAnswer = new SubmitAnswerCase(sessions, ids, clock);
   const evaluateAnswer = new EvaluateAnswerCase(sessions, llmService, ids, clock);
   const completeSession = new CompleteSessionCase(sessions, clock);
+  const listSessions = new ListSessionsCase(sessions);
 
   return {
     repositories: { templates, links, sessions },
     services: { clock, ids, tokenService, llmService },
-    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession },
+    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions },
   };
 }
