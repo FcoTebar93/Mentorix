@@ -26,3 +26,8 @@ export const EvaluateBodySchema = z.object({
     )
     .min(1),
 });
+
+export const ListSessionsQuerySchema = z.object({
+  status: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});

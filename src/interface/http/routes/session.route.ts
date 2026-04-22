@@ -1,9 +1,10 @@
 import type { RegisterRoutes } from "./types.js";
 import {
-  EvaluateBodySchema,
   SessionParamsSchema,
   StartFromLinkBodySchema,
   SubmitAnswerBodySchema,
+  EvaluateBodySchema,
+  ListSessionsQuerySchema
 } from "../schemas/session.schema.js";
 import { mapErrorToHttp } from "../mappers/http-error.js";
 
@@ -142,6 +143,35 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
       request.log.error({ error }, "complete session failed");
       const mapped = mapErrorToHttp(error);
       return reply.code(mapped.statusCode).send({ code: mapped.code, message: mapped.message });
+    }
+  });
+
+  app.get("/v1/interview-sessions", async (request, reply) => {
+    const parsedQuery = ListSessionsQuerySchema.safeParse(request.query);
+    if (!parsedQuery.success) {
+      return reply.code(400).send({
+        code: "INVALID_QUERY",
+        message: "Invalid query params",
+        details: parsedQuery.error.flatten(),
+      });
+    }
+  
+    try {
+      const sessions = await container.useCases.listSessions.execute({
+        status: parsedQuery.data.status,
+        limit: parsedQuery.data.limit,
+      });
+  
+      return reply.code(200).send({
+        code: "OK",
+        data: sessions,
+      });
+    } catch (error) {
+      request.log.error({ error }, "list sessions failed");
+      return reply.code(500).send({
+        code: "INTERNAL_ERROR",
+        message: "Unexpected server error",
+      });
     }
   });
 };
