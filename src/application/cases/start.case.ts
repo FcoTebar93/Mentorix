@@ -1,7 +1,7 @@
 import { InterviewSession } from "../../domain/interview/session/session.aggregate.js";
-import type { InterviewSessionProps } from "../../domain/interview/session/types.js";
+import type { InterviewSessionProps, SessionQuestion } from "../../domain/interview/session/types.js";
 import type { InterviewAccessLinkRepository, InterviewSessionRepository, InterviewTemplateRepository } from "../ports/repositories.js";
-import type { Clock, IdGenerator, TokenService } from "../ports/services.js";
+import type { Clock, IdGenerator, ILlmService, TokenService } from "../ports/services.js";
 
 export interface StartFromLinkCommand {
   rawToken: string;
@@ -14,6 +14,7 @@ export class StartSessionFromLinkCase {
     private readonly links: InterviewAccessLinkRepository,
     private readonly templates: InterviewTemplateRepository,
     private readonly sessions: InterviewSessionRepository,
+    private readonly llm: ILlmService,
     private readonly tokenService: TokenService,
     private readonly ids: IdGenerator,
     private readonly clock: Clock
@@ -59,6 +60,28 @@ export class StartSessionFromLinkCase {
 
     const session = new InterviewSession(props);
     session.start(this.clock.nowISO());
+
+    let generated: { text: string };
+    try {
+      generated = await this.llm.generateQuestion({
+        role: template.role,
+        level: template.level,
+        language: template.language,
+        previousQuestions: [],
+      });
+    } catch {
+      throw new Error("LLM_QUESTION_GENERATION_FAILED");
+    }
+
+    const firstQuestion: SessionQuestion = {
+      id: this.ids.uuid(),
+      index: 1,
+      text: generated.text,
+      generatedByModel: template.llmConfig.model,
+      createdAt: this.clock.nowISO(),
+    };
+
+    session.deliverQuestion(firstQuestion);
 
     await this.sessions.save(session.state);
 

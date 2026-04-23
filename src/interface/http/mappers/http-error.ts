@@ -69,6 +69,12 @@ export function mapErrorToHttp(error: unknown): HttpErrorShape {
           code: "LLM_EVALUATION_FAILED",
           message: "LLM provider evaluation failed",
         };
+      case "LLM_QUESTION_GENERATION_FAILED":
+        return {
+          statusCode: 502,
+          code: "LLM_QUESTION_GENERATION_FAILED",
+          message: "LLM provider question generation failed",
+        };
       default:
         break;
     }

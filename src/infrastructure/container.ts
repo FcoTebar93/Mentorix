@@ -33,6 +33,7 @@ export function buildContainer() {
     links,
     templates,
     sessions,
+    llmService,
     tokenService,
     ids,
     clock
