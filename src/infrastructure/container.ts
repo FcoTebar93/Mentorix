@@ -51,6 +51,6 @@ export function buildContainer() {
   return {
     repositories: { templates, links, sessions },
     services: { clock, ids, tokenService, llmService },
-    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports },
+    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn },
   };
 }
