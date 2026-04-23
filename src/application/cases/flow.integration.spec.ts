@@ -2,18 +2,42 @@ import { describe, expect, it } from "vitest";
 import { CompleteSessionCase } from "./complete.case.js";
 import { SubmitAnswerCase } from "./submit.case.js";
 import type { InterviewSessionProps } from "../../domain/interview/session/types.js";
-import { InMemoryInterviewSessionRepository } from "../../infrastructure/memory/memory.repositories.js";
+import {
+  InMemoryInterviewSessionRepository,
+  InMemoryInterviewTemplateRepository,
+} from "../../infrastructure/memory/memory.repositories.js";
 import { SystemClock, SystemIdGenerator } from "../../infrastructure/system/system.service.js";
-import { buildContainer } from "../../infrastructure/container.js";
 import { EvaluateAnswerCase } from "../../application/cases/evaluate.case.js";
-import type { ILlmService } from "../../application/ports/services.js";
 
 describe("Use case flow integration", () => {
   it("submit -> evaluate -> complete with seeded session", async () => {
     const sessions = new InMemoryInterviewSessionRepository();
+    const templates = new InMemoryInterviewTemplateRepository();
     const ids = new SystemIdGenerator();
     const clock = new SystemClock();
-    const container = buildContainer();
+
+    await templates.save({
+      id: "t1",
+      ownerUserId: "u1",
+      title: "Flow Template",
+      role: "Backend Engineer",
+      level: "mid",
+      language: "es",
+      totalQuestions: 1,
+      rubric: {
+        dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+        passThreshold: 70,
+      },
+      llmConfig: {
+        provider: "openai",
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        maxTokensPerTurn: 600,
+      },
+      isArchived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
 
     const llmStub = {
         async generateQuestion() {
@@ -30,16 +54,9 @@ describe("Use case flow integration", () => {
         },
     };
 
-    container.useCases.evaluateAnswer = new EvaluateAnswerCase(
-        container.repositories.sessions,
-        llmStub,
-        container.services.ids,
-        container.services.clock
-    );
-
     const submitCase = new SubmitAnswerCase(sessions, ids, clock);
     const evaluateCase = new EvaluateAnswerCase(sessions, llmStub, ids, clock);
-    const completeCase = new CompleteSessionCase(sessions, clock);
+    const completeCase = new CompleteSessionCase(sessions, templates, llmStub, ids, clock);
 
     const seeded: InterviewSessionProps = {
       id: "s-flow-1",
