@@ -1168,4 +1168,194 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       await app.close();
     }
   });
+
+  it("returns 200 and generates next question when complete is called mid-flow", async () => {
+    const container = buildTestContainer();
+    const app = buildServer(container);
+  
+    try {
+      await container.repositories.templates.save({
+        id: "t-complete-next-1",
+        ownerUserId: "u1",
+        title: "Backend Interview",
+        role: "Backend Engineer",
+        level: "mid",
+        language: "es",
+        totalQuestions: 3,
+        rubric: {
+          dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+          passThreshold: 70,
+        },
+        llmConfig: {
+          provider: "openai",
+          model: "gpt-4o-mini",
+          temperature: 0.2,
+          maxTokensPerTurn: 600,
+        },
+        isArchived: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+  
+      await container.repositories.sessions.save({
+        id: "s-complete-next-1",
+        templateId: "t-complete-next-1",
+        ownerUserId: "u1",
+        participant: { type: "guest", guestAlias: "test" },
+        entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+        status: "FEEDBACKING",
+        currentQuestionIndex: 0,
+        totalQuestions: 3,
+        questions: [
+          {
+            id: "q1",
+            index: 1,
+            text: "¿Qué es SOLID?",
+            generatedByModel: "manual",
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        answers: [
+          {
+            id: "a1",
+            questionId: "q1",
+            source: "text",
+            text: "Principios de diseño orientado a objetos.",
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+        evaluations: [
+          {
+            id: "e1",
+            answerId: "a1",
+            score: 80,
+            dimensionScores: { architecture: 80 },
+            strengths: ["claridad"],
+            improvements: ["más profundidad"],
+            confidence: 0.9,
+            evaluatedAt: new Date().toISOString(),
+          },
+        ],
+        feedbackItems: [],
+        startedAt: new Date().toISOString(),
+        version: 1,
+      });
+  
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/interview-sessions/s-complete-next-1/complete",
+      });
+  
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+  
+      expect(body.code).toBe("OK");
+      expect(body.data.status).toBe("ASKING");
+      expect(body.data.currentQuestionIndex).toBe(1);
+      expect(body.data.questions.length).toBe(2);
+      expect(body.data.questions[1].index).toBe(2);
+      expect(body.data.questions[1].text).toBeTruthy();
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 502 when next question generation fails on complete mid-flow", async () => {
+    const failingLlm = {
+      async generateQuestion() {
+        throw new Error("provider down");
+      },
+      async evaluateAnswer() {
+        return {
+          score: 80,
+          dimensionScores: { architecture: 80 },
+          strengths: ["ok"],
+          improvements: ["ok"],
+          confidence: 0.8,
+        };
+      },
+    };
+  
+    const container = buildTestContainer({ llmService: failingLlm });
+    const app = buildServer(container);
+  
+    try {
+      await container.repositories.templates.save({
+        id: "t-complete-next-fail-1",
+        ownerUserId: "u1",
+        title: "Backend Interview",
+        role: "Backend Engineer",
+        level: "mid",
+        language: "es",
+        totalQuestions: 3,
+        rubric: {
+          dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+          passThreshold: 70,
+        },
+        llmConfig: {
+          provider: "openai",
+          model: "gpt-4o-mini",
+          temperature: 0.2,
+          maxTokensPerTurn: 600,
+        },
+        isArchived: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+  
+      await container.repositories.sessions.save({
+        id: "s-complete-next-fail-1",
+        templateId: "t-complete-next-fail-1",
+        ownerUserId: "u1",
+        participant: { type: "guest", guestAlias: "test" },
+        entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+        status: "FEEDBACKING",
+        currentQuestionIndex: 0,
+        totalQuestions: 3,
+        questions: [
+          {
+            id: "q1",
+            index: 1,
+            text: "¿Qué es SOLID?",
+            generatedByModel: "manual",
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        answers: [
+          {
+            id: "a1",
+            questionId: "q1",
+            source: "text",
+            text: "Principios de diseño orientado a objetos.",
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+        evaluations: [
+          {
+            id: "e1",
+            answerId: "a1",
+            score: 80,
+            dimensionScores: { architecture: 80 },
+            strengths: ["claridad"],
+            improvements: ["más profundidad"],
+            confidence: 0.9,
+            evaluatedAt: new Date().toISOString(),
+          },
+        ],
+        feedbackItems: [],
+        startedAt: new Date().toISOString(),
+        version: 1,
+      });
+  
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/interview-sessions/s-complete-next-fail-1/complete",
+      });
+  
+      expect(res.statusCode).toBe(502);
+      expect(res.json().code).toBe("LLM_QUESTION_GENERATION_FAILED");
+    } finally {
+      await app.close();
+    }
+  });
 });
