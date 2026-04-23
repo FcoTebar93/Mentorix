@@ -51,6 +51,29 @@ export class EvaluateAnswerCase {
       evaluatedAt: this.clock.nowISO(),
     });
 
+    const strengths = (draft.strengths ?? []).filter(Boolean).slice(0, 2);
+    const improvements = (draft.improvements ?? []).filter(Boolean).slice(0, 2);
+
+    const feedbackParts = [
+      `Puntaje: ${draft.score}/100.`,
+      strengths.length ? `Fortalezas: ${strengths.join(", ")}.` : "",
+      improvements.length ? `Mejoras sugeridas: ${improvements.join(", ")}.` : "",
+      draft.score >= 80
+        ? "Buen desempeño general, puedes avanzar con confianza."
+        : draft.score >= 60
+        ? "Desempeño aceptable, conviene reforzar los puntos de mejora."
+        : "Necesita más práctica en fundamentos antes de avanzar.",
+    ].filter(Boolean);
+
+    const feedbackText = feedbackParts.join(" ");
+
+    session.addFeedback({
+      id: this.ids.uuid(),
+      answerId: lastAnswer.id,
+      text: feedbackText,
+      generatedAt: this.clock.nowISO(),
+    });
+
     await this.sessions.save(session.state);
     return session.state;
   }
