@@ -1025,4 +1025,147 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       await app.close();
     }
   });
+
+  it("returns 201 and includes first generated question when starting from link (seed directo)", async () => {
+    const container = buildTestContainer();
+    const app = buildServer(container);
+  
+    try {
+      const now = new Date().toISOString();
+      const rawToken = "raw-token-start-1";
+      const tokenHash = await container.services.tokenService.hash(rawToken);
+  
+      await container.repositories.templates.save({
+        id: "t-start-1",
+        ownerUserId: "u1",
+        title: "Backend Interview",
+        role: "Backend Engineer",
+        level: "mid",
+        language: "es",
+        totalQuestions: 3,
+        rubric: {
+          dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+          passThreshold: 70,
+        },
+        llmConfig: {
+          provider: "openai",
+          model: "gpt-4o-mini",
+          temperature: 0.2,
+          maxTokensPerTurn: 600,
+        },
+        isArchived: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+  
+      await container.repositories.links.save({
+        id: "l-start-1",
+        templateId: "t-start-1",
+        ownerUserId: "u1",
+        tokenHash,
+        status: "active",
+        maxUses: 5,
+        usedCount: 0,
+        createdAt: now,
+      });
+  
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/interview-sessions/from-link",
+        payload: {
+          rawToken,
+          guestAlias: "Fran",
+        },
+      });
+  
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+  
+      expect(body.code).toBe("OK");
+      expect(body.data.status).toBe("ASKING");
+      expect(body.data.questions.length).toBe(1);
+      expect(body.data.questions[0].index).toBe(1);
+      expect(body.data.questions[0].text).toBeTruthy();
+      expect(body.data.currentQuestionIndex).toBe(0);
+  
+      const updatedLink = await container.repositories.links.getById("l-start-1");
+      expect(updatedLink?.usedCount).toBe(1);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 502 when generateQuestion fails on start from link", async () => {
+    const failingLlm = {
+      async generateQuestion() {
+        throw new Error("provider down");
+      },
+      async evaluateAnswer() {
+        return {
+          score: 80,
+          dimensionScores: { architecture: 80 },
+          strengths: ["ok"],
+          improvements: ["ok"],
+          confidence: 0.8,
+        };
+      },
+    };
+  
+    const container = buildTestContainer({ llmService: failingLlm });
+    const app = buildServer(container);
+  
+    try {
+      const now = new Date().toISOString();
+      const rawToken = "raw-token-start-fail";
+      const tokenHash = await container.services.tokenService.hash(rawToken);
+  
+      await container.repositories.templates.save({
+        id: "t-start-fail",
+        ownerUserId: "u1",
+        title: "Backend Interview",
+        role: "Backend Engineer",
+        level: "mid",
+        language: "es",
+        totalQuestions: 3,
+        rubric: {
+          dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+          passThreshold: 70,
+        },
+        llmConfig: {
+          provider: "openai",
+          model: "gpt-4o-mini",
+          temperature: 0.2,
+          maxTokensPerTurn: 600,
+        },
+        isArchived: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+  
+      await container.repositories.links.save({
+        id: "l-start-fail",
+        templateId: "t-start-fail",
+        ownerUserId: "u1",
+        tokenHash,
+        status: "active",
+        maxUses: 5,
+        usedCount: 0,
+        createdAt: now,
+      });
+  
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/interview-sessions/from-link",
+        payload: {
+          rawToken,
+          guestAlias: "Fran",
+        },
+      });
+  
+      expect(res.statusCode).toBe(502);
+      expect(res.json().code).toBe("LLM_QUESTION_GENERATION_FAILED");
+    } finally {
+      await app.close();
+    }
+  });
 });
