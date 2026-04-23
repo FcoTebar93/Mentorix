@@ -1581,4 +1581,40 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       await app.close();
     }
   });
+
+  it("returns 403 when GET session belongs to another owner", async () => {
+    const container = buildTestContainer();
+  
+    await container.repositories.sessions.save({
+      id: "s-owner-403-1",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "test" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "ASKING",
+      currentQuestionIndex: 1,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+  
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/interview-sessions/s-owner-403-1",
+        headers: auth("u2"),
+      });
+  
+      expect(res.statusCode).toBe(403);
+      expect(res.json().code).toBe("FORBIDDEN");
+    } finally {
+      await app.close();
+    }
+  });
 });
