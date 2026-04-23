@@ -8,7 +8,6 @@ const TemplateParamsSchema = z.object({
 });
 
 const CreateAccessLinkBodySchema = z.object({
-  ownerUserId: z.string().min(1),
   maxUses: z.number().int().positive().optional(),
   expiresAt: z.string().datetime().optional(),
 });

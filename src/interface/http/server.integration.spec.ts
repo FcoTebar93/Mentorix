@@ -3,6 +3,10 @@ import type { InterviewSessionProps } from "../../domain/interview/session/types
 import { buildTestContainer } from "../../infrastructure/test-container.js";
 import { buildServer } from "./server.js";
 
+const auth = (userId: string) => ({
+  authorization: `Bearer test-user:${userId}`,
+});
+
 describe("HTTP interview flow", { timeout: 15000 }, () => {
   it("returns 400 when evaluate body is invalid", async () => {
     const app = buildServer(buildTestContainer());
@@ -10,6 +14,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/s1/evaluate",
+        headers: auth("u1"),
         payload: { rubricDimensions: [] },
       });
 
@@ -26,6 +31,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/unknown/answers",
+        headers: auth("u1"),
         payload: { questionId: "q1", source: "text", text: "respuesta" },
       });
 
@@ -42,6 +48,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/unknown/complete",
+        headers: auth("u1"),
       });
 
       expect(res.statusCode).toBe(404);
@@ -57,6 +64,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/v1/interview-sessions/unknown",
+        headers: auth("u1"),
       });
 
       expect(res.statusCode).toBe(404);
@@ -93,6 +101,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/v1/interview-sessions/s-get-1",
+        headers: auth("u1"),
       });
 
       expect(res.statusCode).toBe(200);
@@ -109,6 +118,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/s1/answers",
+        headers: auth("u1"),
         payload: { questionId: "", source: "text", text: "" },
       });
 
@@ -153,6 +163,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/s-submit-1/answers",
+        headers: auth("u1"),
         payload: {
           questionId: "q1",
           source: "text",
@@ -176,6 +187,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/unknown/evaluate",
+        headers: auth("u1"),
         payload: { rubricDimensions: [{ key: "architecture", weight: 1 }] },
       });
 
@@ -228,6 +240,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/s-eval-1/evaluate",
+        headers: auth("u1"),
         payload: { rubricDimensions: [{ key: "architecture", weight: 1 }] },
       });
 
@@ -247,6 +260,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/unknown/complete",
+        headers: auth("u1"),
       });
 
       expect(res.statusCode).toBe(404);
@@ -309,6 +323,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/s-complete-1/complete",
+        headers: auth("u1"),
       });
 
       expect(res.statusCode).toBe(200);
@@ -346,6 +361,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/s-complete-invalid/complete",
+        headers: auth("u1"),
       });
 
       expect(res.statusCode).toBe(409);
@@ -361,7 +377,8 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/templates",
-        payload: { ownerUserId: "u1" },
+        headers: auth("u1"),
+        payload: { title: "Backend Interview", role: "Backend Engineer", level: "mid", language: "es", totalQuestions: 4, rubric: { dimensions: [{ key: "architecture", weight: 1, description: "Depth" }], passThreshold: 75 }, llmConfig: { provider: "openai", model: "gpt-4o-mini", temperature: 0.2, maxTokensPerTurn: 700 } },
       });
 
       expect(res.statusCode).toBe(400);
@@ -377,6 +394,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/templates",
+        headers: auth("u1"),
         payload: {
           ownerUserId: "u1",
           title: "Frontend Interview",
@@ -413,7 +431,8 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/templates//access-links",
-        payload: { ownerUserId: "" },
+        headers: auth("u1"),
+        payload: { maxUses: 10 },
       });
 
       expect([400, 404]).toContain(res.statusCode);
@@ -428,6 +447,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const templateRes = await app.inject({
         method: "POST",
         url: "/v1/templates",
+        headers: auth("u1"),
         payload: {
           ownerUserId: "u1",
           title: "Backend Interview",
@@ -453,8 +473,8 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const linkRes = await app.inject({
         method: "POST",
         url: `/v1/templates/${templateId}/access-links`,
+        headers: auth("u1"),
         payload: {
-          ownerUserId: "u1",
           maxUses: 10,
         },
       });
@@ -466,6 +486,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const startRes = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/from-link",
+        headers: auth("u1"),
         payload: { rawToken, guestAlias: "test" },
       });
       expect(linkRes.json().data.tokenHash).toBeUndefined();
@@ -499,6 +520,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/v1/interview-sessions",
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(200);
@@ -554,6 +576,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/v1/interview-sessions?status=COMPLETED",
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(200);
@@ -572,6 +595,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/v1/interview-sessions?limit=0",
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(400);
@@ -587,6 +611,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/health/live",
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(200);
@@ -602,6 +627,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/health/ready",
+        headers: auth("u1"),
       });
   
       expect([200, 503]).toContain(res.statusCode);
@@ -616,6 +642,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/v1/interview-sessions/unknown/report",
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(404);
@@ -673,6 +700,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/v1/interview-sessions/s-report-1/report",
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(200);
@@ -741,6 +769,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const reportRes = await app.inject({
         method: "GET",
         url: `/v1/interview-sessions/${sessionId}/report`,
+        headers: auth("u1"),
       });
   
       expect(reportRes.statusCode).toBe(200);
@@ -806,6 +835,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: `/v1/interview-sessions/${sessionId}/report`,
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(200);
@@ -934,6 +964,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/v1/interview-sessions/reports",
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(200);
@@ -1003,6 +1034,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/v1/interview-sessions/reports?status=COMPLETED",
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(200);
@@ -1024,6 +1056,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "GET",
         url: "/v1/interview-sessions/reports?limit=0",
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(400);
@@ -1079,6 +1112,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/from-link",
+        headers: auth("u1"),
         payload: {
           rawToken,
           guestAlias: "Fran",
@@ -1163,6 +1197,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/from-link",
+        headers: auth("u1"),
         payload: {
           rawToken,
           guestAlias: "Fran",
@@ -1251,6 +1286,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/s-complete-next-1/complete",
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(200);
@@ -1357,6 +1393,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/s-complete-next-fail-1/complete",
+        headers: auth("u1"),
       });
   
       expect(res.statusCode).toBe(502);
@@ -1422,6 +1459,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/s-turn-1/turn",
+        headers: auth("u1"),
         payload: {
           questionId: "q1",
           source: "text",
@@ -1499,6 +1537,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/s-turn-last-1/turn",
+        headers: auth("u1"),
         payload: {
           questionId: "q1",
           source: "text",
@@ -1527,6 +1566,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/s1/turn",
+        headers: auth("u1"),
         payload: {
           questionId: "q1",
           source: "text",
