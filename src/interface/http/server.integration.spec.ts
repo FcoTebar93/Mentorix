@@ -461,7 +461,14 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
 
       expect(linkRes.statusCode).toBe(201);
       expect(linkRes.json().code).toBe("OK");
-      expect(linkRes.json().data.id).toBeTruthy();
+      expect(linkRes.json().data.rawToken).toBeTruthy();
+      const rawToken = linkRes.json().data.rawToken;
+      const startRes = await app.inject({
+        method: "POST",
+        url: "/v1/interview-sessions/from-link",
+        payload: { rawToken, guestAlias: "test" },
+      });
+      expect(linkRes.json().data.tokenHash).toBeUndefined();
     } finally {
       await app.close();
     }
