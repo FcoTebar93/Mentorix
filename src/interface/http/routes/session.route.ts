@@ -49,12 +49,20 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
 
     try {
       const session = await container.repositories.sessions.getById(parsedParams.data.sessionId);
+
       if (!session) {
         return reply.code(404).send({
           code: "SESSION_NOT_FOUND",
           message: "Session not found",
         });
       }
+      if (session.ownerUserId !== request.user!.id) {
+        return reply.code(403).send({
+          code: "FORBIDDEN",
+          message: "Forbidden",
+        });
+      }
+
       return reply.code(200).send({ code: "OK", data: session });
     } catch (error) {
       request.log.error({ error }, "get session failed");

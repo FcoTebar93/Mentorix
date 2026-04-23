@@ -3,6 +3,7 @@ import type { InterviewSessionRepository } from "../ports/repositories.js";
 export type TrafficLight = "GREEN" | "YELLOW" | "RED" | "GRAY";
 
 export interface ListSessionReportsQuery {
+  ownerUserId: string;
   status?: string;
   limit?: number;
 }
@@ -28,8 +29,9 @@ function toTrafficLight(overallScore: number | null): TrafficLight {
 export class ListSessionReportsCase {
   constructor(private readonly sessions: InterviewSessionRepository) {}
 
-  async execute(query: ListSessionReportsQuery = {}): Promise<SessionReportListItem[]> {
+  async execute(query: ListSessionReportsQuery): Promise<SessionReportListItem[]> {
     const sessions = await this.sessions.list({
+      ownerUserId: query.ownerUserId,
       status: query.status,
       limit: query.limit,
     });
