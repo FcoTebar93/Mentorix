@@ -14,6 +14,7 @@ import { CreateAccessLinkCase } from "../application/cases/create-access-link.ca
 import { ListSessionsCase } from "../application/cases/list-sessions.case.js";
 import { GetSessionReportCase } from "../application/cases/get-session.case.js";
 import { ListSessionReportsCase } from "../application/cases/list-reports.case.js";
+import { AdvanceTurnCase } from "../application/cases/advance-turn.case.js";
 
 type BuildTestContainerOptions = {
   llmService?: ILlmService;
@@ -64,10 +65,11 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
   const listSessions = new ListSessionsCase(sessions);
   const getSessionReport = new GetSessionReportCase(sessions);
   const listSessionReports = new ListSessionReportsCase(sessions);
+  const advanceTurn = new AdvanceTurnCase(submitAnswer, evaluateAnswer, completeSession);
 
   return {
     repositories: { templates, links, sessions },
     services: { clock, ids, tokenService, llmService },
-    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports },
+    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeSession },
   };
 }

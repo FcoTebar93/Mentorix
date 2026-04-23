@@ -13,6 +13,7 @@ import { PgInterviewSessionRepository } from "./repositories/postgres/session.re
 import { ListSessionsCase } from "../application/cases/list-sessions.case.js";
 import { GetSessionReportCase } from "../application/cases/get-session.case.js";
 import { ListSessionReportsCase } from "../application/cases/list-reports.case.js";
+import { CompleteTurnCase } from "../application/cases/complete-turn.case.js";
 
 export function buildContainer() {
   const templates = new PgInterviewTemplateRepository();
@@ -45,6 +46,7 @@ export function buildContainer() {
   const listSessions = new ListSessionsCase(sessions);
   const getSessionReport = new GetSessionReportCase(sessions);
   const listSessionReports = new ListSessionReportsCase(sessions);
+  const completeTurn = new CompleteTurnCase(submitAnswer, evaluateAnswer, completeSession);
   
   return {
     repositories: { templates, links, sessions },
