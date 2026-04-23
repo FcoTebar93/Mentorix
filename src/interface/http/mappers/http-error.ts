@@ -43,12 +43,18 @@ export function mapErrorToHttp(error: unknown): HttpErrorShape {
         return { statusCode: 401, code: "TOKEN_HASH_NOT_FOUND", message: "Token hash not found" };
       case "TOKEN_HASH_INVALID":
         return { statusCode: 401, code: "TOKEN_HASH_INVALID", message: "Token hash invalid" };
-        case "ACCESS_LINK_NOT_ACTIVE":
-          return { statusCode: 403, code: "ACCESS_LINK_NOT_ACTIVE", message: "Access link not active" };
-        case "ACCESS_LINK_EXPIRED":
-          return { statusCode: 403, code: "ACCESS_LINK_EXPIRED", message: "Access link expired" };
-        case "ACCESS_LINK_MAX_USES_REACHED":
-          return { statusCode: 403, code: "ACCESS_LINK_MAX_USES_REACHED", message: "Access link max uses reached" };
+      case "UNAUTHORIZED":
+        return { statusCode: 401, code: "UNAUTHORIZED", message: "Unauthorized" };
+      case "FORBIDDEN":
+        return { statusCode: 403, code: "FORBIDDEN", message: "Forbidden" };
+      case "ACCESS_LINK_NOT_ACTIVE":
+        return { statusCode: 403, code: "ACCESS_LINK_NOT_ACTIVE", message: "Access link not active" };
+      case "ACCESS_LINK_NOT_FOUND":
+        return { statusCode: 404, code: "ACCESS_LINK_NOT_FOUND", message: "Access link not found" };
+      case "ACCESS_LINK_EXPIRED":
+        return { statusCode: 403, code: "ACCESS_LINK_EXPIRED", message: "Access link expired" };
+      case "ACCESS_LINK_MAX_USES_REACHED":
+        return { statusCode: 403, code: "ACCESS_LINK_MAX_USES_REACHED", message: "Access link max uses reached" };
       case "SESSION_NOT_FOUND":
         return { statusCode: 404, code: "SESSION_NOT_FOUND", message: "Session not found" };
       case "ACCESS_LINK_NOT_FOUND":
