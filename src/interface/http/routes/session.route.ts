@@ -9,9 +9,10 @@ import {
   CompleteTurnBodySchema
 } from "../schemas/session.schema.js";
 import { mapErrorToHttp } from "../mappers/http-error.js";
+import { requireAuth } from "../auth.handler.js";
 
 export const registerSessionRoutes: RegisterRoutes = (app, container) => {
-  app.post("/v1/interview-sessions/from-link", async (request, reply) => {
+  app.post("/v1/interview-sessions/from-link", { preHandler: requireAuth }, async (request, reply) => {
     const parsedBody = StartFromLinkBodySchema.safeParse(request.body);
     if (!parsedBody.success) {
       return reply.code(400).send({
@@ -22,7 +23,11 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     }
 
     try {
-      const session = await container.useCases.startSession.execute(parsedBody.data);
+      const session = await container.useCases.startSession.execute({
+        rawToken: parsedBody.data.rawToken,
+        guestAlias: parsedBody.data.guestAlias,
+        fingerprintHash: parsedBody.data.fingerprintHash,
+      });
       return reply.code(201).send({ code: "OK", data: session });
     } catch (error) {
       request.log.error({ error }, "start from link failed");
@@ -31,7 +36,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     }
   });
 
-  app.get("/v1/interview-sessions/:sessionId", async (request, reply) => {
+  app.get("/v1/interview-sessions/:sessionId", { preHandler: requireAuth }, async (request, reply) => {
     const parsedParams = SessionParamsSchema.safeParse(request.params);
     if (!parsedParams.success) {
       return reply.code(400).send({
