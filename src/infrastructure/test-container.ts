@@ -52,6 +52,7 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
     links,
     templates,
     sessions,
+    llmService,
     tokenService,
     ids,
     clock
@@ -59,7 +60,7 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
 
   const submitAnswer = new SubmitAnswerCase(sessions, ids, clock);
   const evaluateAnswer = new EvaluateAnswerCase(sessions, llmService, ids, clock);
-  const completeSession = new CompleteSessionCase(sessions, clock);
+  const completeSession = new CompleteSessionCase(sessions, templates, llmService, ids, clock);
   const listSessions = new ListSessionsCase(sessions);
   const getSessionReport = new GetSessionReportCase(sessions);
   const listSessionReports = new ListSessionReportsCase(sessions);
