@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { RegisterRoutes } from "./types.js";
 import { mapErrorToHttp } from "../mappers/http-error.js";
+import { requireAuth } from "../auth.handler.js";
 
 const TemplateParamsSchema = z.object({
   templateId: z.string().min(1),
@@ -13,7 +14,7 @@ const CreateAccessLinkBodySchema = z.object({
 });
 
 export const registerAccessLinkRoutes: RegisterRoutes = (app, container) => {
-  app.post("/v1/templates/:templateId/access-links", async (request, reply) => {
+  app.post("/v1/templates/:templateId/access-links", { preHandler: requireAuth }, async (request, reply) => {
     const parsedParams = TemplateParamsSchema.safeParse(request.params);
     if (!parsedParams.success) {
       return reply.code(400).send({
@@ -35,7 +36,9 @@ export const registerAccessLinkRoutes: RegisterRoutes = (app, container) => {
     try {
       const result = await container.useCases.createAccessLink.execute({
         templateId: parsedParams.data.templateId,
-        ...parsedBody.data,
+        ownerUserId: request.user!.id,
+        maxUses: parsedBody.data.maxUses,
+        expiresAt: parsedBody.data.expiresAt,
       });
 
       return reply.code(201).send({

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { RegisterRoutes } from "./types.js";
 import { mapErrorToHttp } from "../mappers/http-error.js";
+import { requireAuth } from "../auth.handler.js";
 
 const CreateTemplateBodySchema = z.object({
   ownerUserId: z.string().min(1),
@@ -35,7 +36,7 @@ const CreateTemplateBodySchema = z.object({
 });
 
 export const registerTemplateRoutes: RegisterRoutes = (app, container) => {
-  app.post("/v1/templates", async (request, reply) => {
+  app.post("/v1/templates", { preHandler: requireAuth }, async (request, reply) => {
     const parsedBody = CreateTemplateBodySchema.safeParse(request.body);
     if (!parsedBody.success) {
       return reply.code(400).send({
@@ -46,7 +47,17 @@ export const registerTemplateRoutes: RegisterRoutes = (app, container) => {
     }
 
     try {
-      const template = await container.useCases.createTemplate.execute(parsedBody.data);
+      const template = await container.useCases.createTemplate.execute({
+        ownerUserId: request.user!.id,
+        title: parsedBody.data.title,
+        role: parsedBody.data.role,
+        level: parsedBody.data.level,
+        language: parsedBody.data.language,
+        totalQuestions: parsedBody.data.totalQuestions,
+        rubric: parsedBody.data.rubric,
+        llmConfig: parsedBody.data.llmConfig,
+        voiceConfig: parsedBody.data.voiceConfig,
+      });
       return reply.code(201).send({ code: "OK", data: template });
     } catch (error) {
       request.log.error({ error }, "create template failed");
