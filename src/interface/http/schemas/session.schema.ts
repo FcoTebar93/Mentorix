@@ -36,3 +36,17 @@ export const ListSessionReportsQuerySchema = z.object({
   status: z.string().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
+
+export const CompleteTurnBodySchema = z.object({
+  questionId: z.string().min(1),
+  source: z.enum(["voice", "text"]),
+  text: z.string().min(1),
+  rubricDimensions: z
+    .array(
+      z.object({
+        key: z.string().min(1),
+        weight: z.number().positive(),
+      })
+    )
+    .min(1),
+});

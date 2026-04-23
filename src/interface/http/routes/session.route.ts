@@ -5,7 +5,8 @@ import {
   SubmitAnswerBodySchema,
   EvaluateBodySchema,
   ListSessionsQuerySchema,
-  ListSessionReportsQuerySchema
+  ListSessionReportsQuerySchema,
+  CompleteTurnBodySchema
 } from "../schemas/session.schema.js";
 import { mapErrorToHttp } from "../mappers/http-error.js";
 
@@ -229,6 +230,42 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
         code: "INTERNAL_ERROR",
         message: "Unexpected server error",
       });
+    }
+  });
+
+  app.post("/v1/interview-sessions/:sessionId/turn", async (request, reply) => {
+    const parsedParams = SessionParamsSchema.safeParse(request.params);
+    if (!parsedParams.success) {
+      return reply.code(400).send({
+        code: "INVALID_PARAMS",
+        message: "Invalid route params",
+        details: parsedParams.error.flatten(),
+      });
+    }
+
+    const parsedBody = CompleteTurnBodySchema.safeParse(request.body);
+    if (!parsedBody.success) {
+      return reply.code(400).send({
+        code: "INVALID_BODY",
+        message: "Invalid request body",
+        details: parsedBody.error.flatten(),
+      });
+    }
+
+    try {
+      const result = await container.useCases.completeTurn.execute({
+        sessionId: parsedParams.data.sessionId,
+        questionId: parsedBody.data.questionId,
+        source: parsedBody.data.source,
+        text: parsedBody.data.text,
+        rubricDimensions: parsedBody.data.rubricDimensions,
+      });
+
+      return reply.code(200).send({ code: "OK", data: result });
+    } catch (error) {
+      request.log.error({ error }, "advance turn failed");
+      const mapped = mapErrorToHttp(error);
+      return reply.code(mapped.statusCode).send({ code: mapped.code, message: mapped.message });
     }
   });
 };
