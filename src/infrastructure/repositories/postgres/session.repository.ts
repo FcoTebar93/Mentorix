@@ -71,14 +71,20 @@ export class PgInterviewSessionRepository implements InterviewSessionRepository 
     };
   }
 
-  async list(params?: { status?: string; limit?: number }): Promise<InterviewSessionProps[]> {
+  async list(params?: { ownerUserId?: string; status?: string; limit?: number }): Promise<InterviewSessionProps[]> {    
     const limit = Math.max(1, Math.min(params?.limit ?? 20, 100));
     const status = params?.status;
+    const ownerUserId = params?.ownerUserId;
   
+    const conditions = [
+      ownerUserId ? eq(interviewSessionsTable.ownerUserId, ownerUserId) : undefined,
+      status ? eq(interviewSessionsTable.status, status) : undefined,
+    ].filter(Boolean);
+    
     const rows = await getDb()
       .select()
       .from(interviewSessionsTable)
-      .where(status ? eq(interviewSessionsTable.status, status) : undefined)
+      .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(interviewSessionsTable.startedAt))
       .limit(limit);
   

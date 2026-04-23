@@ -51,12 +51,14 @@ export class InMemoryInterviewSessionRepository implements InterviewSessionRepos
       return value ? structuredClone(value) : null;
     }
 
-    async list(params?: { status?: string; limit?: number }): Promise<InterviewSessionProps[]> {
+    async list(params?: { ownerUserId?: string; status?: string; limit?: number }): Promise<InterviewSessionProps[]> {
+      const ownerUserId = params?.ownerUserId;
       const status = params?.status;
       const limit = params?.limit ?? 20;
     
       const items = Array.from(this.store.values())
         .map((s) => structuredClone(s))
+        .filter((s) => (ownerUserId ? s.ownerUserId === ownerUserId : true))
         .filter((s) => (status ? s.status === status : true))
         .slice(0, Math.max(0, Math.min(limit, 100)));
     
