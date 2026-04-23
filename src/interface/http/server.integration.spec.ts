@@ -1358,4 +1358,180 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       await app.close();
     }
   });
+
+  it("returns 200 and advances turn with next question when session is mid-flow", async () => {
+    const container = buildTestContainer();
+    const app = buildServer(container);
+  
+    try {
+      await container.repositories.templates.save({
+        id: "t-turn-1",
+        ownerUserId: "u1",
+        title: "Turn Interview",
+        role: "Backend Engineer",
+        level: "mid",
+        language: "es",
+        totalQuestions: 2,
+        rubric: {
+          dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+          passThreshold: 70,
+        },
+        llmConfig: {
+          provider: "openai",
+          model: "gpt-4o-mini",
+          temperature: 0.2,
+          maxTokensPerTurn: 600,
+        },
+        isArchived: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+  
+      await container.repositories.sessions.save({
+        id: "s-turn-1",
+        templateId: "t-turn-1",
+        ownerUserId: "u1",
+        participant: { type: "guest", guestAlias: "Fran" },
+        entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+        status: "ASKING",
+        currentQuestionIndex: 0,
+        totalQuestions: 2,
+        questions: [
+          {
+            id: "q1",
+            index: 1,
+            text: "Explain CAP theorem",
+            generatedByModel: "manual",
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        answers: [],
+        evaluations: [],
+        feedbackItems: [],
+        startedAt: new Date().toISOString(),
+        version: 1,
+      });
+  
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/interview-sessions/s-turn-1/turn",
+        payload: {
+          questionId: "q1",
+          source: "text",
+          text: "Consistency, availability and partition tolerance tradeoffs.",
+          rubricDimensions: [{ key: "architecture", weight: 1 }],
+        },
+      });
+  
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.code).toBe("OK");
+      expect(body.data.session.status).toBe("ASKING");
+      expect(body.data.latestEvaluation).toBeTruthy();
+      expect(body.data.latestFeedback).toBeTruthy();
+      expect(body.data.nextQuestion).toBeTruthy();
+      expect(body.data.isCompleted).toBe(false);
+    } finally {
+      await app.close();
+    }
+  });
+  
+  it("returns 200 and marks turn as completed on last question", async () => {
+    const container = buildTestContainer();
+    const app = buildServer(container);
+  
+    try {
+      await container.repositories.templates.save({
+        id: "t-turn-last-1",
+        ownerUserId: "u1",
+        title: "Turn Interview Last",
+        role: "Backend Engineer",
+        level: "mid",
+        language: "es",
+        totalQuestions: 1,
+        rubric: {
+          dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+          passThreshold: 70,
+        },
+        llmConfig: {
+          provider: "openai",
+          model: "gpt-4o-mini",
+          temperature: 0.2,
+          maxTokensPerTurn: 600,
+        },
+        isArchived: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+  
+      await container.repositories.sessions.save({
+        id: "s-turn-last-1",
+        templateId: "t-turn-last-1",
+        ownerUserId: "u1",
+        participant: { type: "guest", guestAlias: "Fran" },
+        entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+        status: "ASKING",
+        currentQuestionIndex: 0,
+        totalQuestions: 1,
+        questions: [
+          {
+            id: "q1",
+            index: 1,
+            text: "Explain dependency inversion",
+            generatedByModel: "manual",
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        answers: [],
+        evaluations: [],
+        feedbackItems: [],
+        startedAt: new Date().toISOString(),
+        version: 1,
+      });
+  
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/interview-sessions/s-turn-last-1/turn",
+        payload: {
+          questionId: "q1",
+          source: "text",
+          text: "High-level modules depend on abstractions.",
+          rubricDimensions: [{ key: "architecture", weight: 1 }],
+        },
+      });
+  
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.code).toBe("OK");
+      expect(body.data.session.status).toBe("COMPLETED");
+      expect(body.data.nextQuestion).toBeNull();
+      expect(body.data.isCompleted).toBe(true);
+      expect(body.data.latestEvaluation).toBeTruthy();
+      expect(body.data.latestFeedback).toBeTruthy();
+    } finally {
+      await app.close();
+    }
+  });
+  
+  it("returns 400 when turn body is invalid", async () => {
+    const app = buildServer(buildTestContainer());
+  
+    try {
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/interview-sessions/s1/turn",
+        payload: {
+          questionId: "q1",
+          source: "text",
+          text: "respuesta",
+          rubricDimensions: [],
+        },
+      });
+  
+      expect(res.statusCode).toBe(400);
+      expect(res.json().code).toBe("INVALID_BODY");
+    } finally {
+      await app.close();
+    }
+  });
 });
