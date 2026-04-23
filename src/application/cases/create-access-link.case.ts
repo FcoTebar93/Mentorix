@@ -12,6 +12,11 @@ export interface CreateAccessLinkCommand {
   expiresAt?: string;
 }
 
+export interface CreateAccessLinkResult {
+  link: InterviewAccessLink;
+  rawToken: string;
+}
+
 export class CreateAccessLinkCase {
   constructor(
     private readonly links: InterviewAccessLinkRepository,
@@ -21,7 +26,7 @@ export class CreateAccessLinkCase {
     private readonly clock: Clock
   ) {}
 
-  async execute(command: CreateAccessLinkCommand): Promise<InterviewAccessLink> {
+  async execute(command: CreateAccessLinkCommand): Promise<CreateAccessLinkResult> {
     const template = await this.templates.getById(command.templateId);
     if (!template) throw new Error("TEMPLATE_NOT_FOUND");
     if (template.ownerUserId !== command.ownerUserId) throw new Error("FORBIDDEN");
@@ -42,6 +47,7 @@ export class CreateAccessLinkCase {
     };
 
     await this.links.save(link);
-    return link;
+
+    return { link, rawToken };
   }
 }

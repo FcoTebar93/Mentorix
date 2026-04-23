@@ -33,12 +33,25 @@ export const registerAccessLinkRoutes: RegisterRoutes = (app, container) => {
     }
 
     try {
-      const link = await container.useCases.createAccessLink.execute({
+      const result = await container.useCases.createAccessLink.execute({
         templateId: parsedParams.data.templateId,
         ...parsedBody.data,
       });
 
-      return reply.code(201).send({ code: "OK", data: link });
+      return reply.code(201).send({
+        code: "OK",
+        data: {
+          id: result.link.id,
+          templateId: result.link.templateId,
+          ownerUserId: result.link.ownerUserId,
+          status: result.link.status,
+          maxUses: result.link.maxUses,
+          usedCount: result.link.usedCount,
+          expiresAt: result.link.expiresAt,
+          createdAt: result.link.createdAt,
+          rawToken: result.rawToken,
+        },
+      });
     } catch (error) {
       request.log.error({ error }, "create access link failed");
       const mapped = mapErrorToHttp(error);
