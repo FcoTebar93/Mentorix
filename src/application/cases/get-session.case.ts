@@ -2,6 +2,7 @@ import type { InterviewSessionRepository } from "../ports/repositories.js";
 
 export interface GetSessionReportQuery {
   sessionId: string;
+  ownerUserId: string;
 }
 
 export interface SessionReport {
@@ -23,7 +24,12 @@ export class GetSessionReportCase {
 
   async execute(query: GetSessionReportQuery): Promise<SessionReport> {
     const session = await this.sessions.getById(query.sessionId);
-    if (!session) throw new Error("SESSION_NOT_FOUND");
+    if (!session){
+      throw new Error("SESSION_NOT_FOUND");
+    } 
+    if (session.ownerUserId !== query.ownerUserId){
+      throw new Error("FORBIDDEN");
+    }
   
     const evaluations = session.evaluations ?? [];
     const scores = evaluations.map((e) => e.score).filter((s) => Number.isFinite(s));
