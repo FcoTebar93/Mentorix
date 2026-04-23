@@ -28,6 +28,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
         guestAlias: parsedBody.data.guestAlias,
         fingerprintHash: parsedBody.data.fingerprintHash,
       });
+    
       return reply.code(201).send({ code: "OK", data: session });
     } catch (error) {
       request.log.error({ error }, "start from link failed");
@@ -165,6 +166,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
   
     try {
       const sessions = await container.useCases.listSessions.execute({
+        ownerUserId: request.user!.id,
         status: parsedQuery.data.status,
         limit: parsedQuery.data.limit,
       });
@@ -196,6 +198,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     try {
       const report = await container.useCases.getSessionReport.execute({
         sessionId: parsedParams.data.sessionId,
+        ownerUserId: request.user!.id,
       });
   
       return reply.code(200).send({
@@ -221,6 +224,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
   
     try {
       const reports = await container.useCases.listSessionReports.execute({
+        ownerUserId: request.user!.id,
         status: parsedQuery.data.status,
         limit: parsedQuery.data.limit,
       });
