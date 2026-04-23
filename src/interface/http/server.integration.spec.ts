@@ -813,4 +813,216 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       await app.close();
     }
   });
+
+  it("returns 200 and lists session reports with trafficLight", async () => {
+    const container = buildTestContainer();
+  
+    await container.repositories.sessions.save({
+      id: "s-list-r-green",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "g1" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "COMPLETED",
+      currentQuestionIndex: 2,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [
+        {
+          id: "e1",
+          answerId: "a1",
+          score: 85,
+          dimensionScores: { architecture: 85 },
+          confidence: 0.9,
+          strengths: [],
+          improvements: [],
+          evaluatedAt: new Date().toISOString(),
+        },
+      ],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    await container.repositories.sessions.save({
+      id: "s-list-r-yellow",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "g2" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "COMPLETED",
+      currentQuestionIndex: 2,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [
+        {
+          id: "e2",
+          answerId: "a2",
+          score: 65,
+          dimensionScores: { architecture: 65 },
+          confidence: 0.7,
+          strengths: [],
+          improvements: [],
+          evaluatedAt: new Date().toISOString(),
+        },
+      ],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    await container.repositories.sessions.save({
+      id: "s-list-r-red",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "g3" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "COMPLETED",
+      currentQuestionIndex: 2,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [
+        {
+          id: "e3",
+          answerId: "a3",
+          score: 45,
+          dimensionScores: { architecture: 45 },
+          confidence: 0.5,
+          strengths: [],
+          improvements: [],
+          evaluatedAt: new Date().toISOString(),
+        },
+      ],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    await container.repositories.sessions.save({
+      id: "s-list-r-gray",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "g4" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "ASKING",
+      currentQuestionIndex: 1,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+  
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/interview-sessions/reports",
+      });
+  
+      expect(res.statusCode).toBe(200);
+      type ReportListItem = {
+        sessionId: string;
+        trafficLight: "GREEN" | "YELLOW" | "RED" | "GRAY";
+      };
+
+      const body = res.json<{ code: string; data: ReportListItem[] }>();
+      expect(body.code).toBe("OK");
+      expect(Array.isArray(body.data)).toBe(true);
+      
+      const byId = new Map<string, ReportListItem>(
+        body.data.map((item) => [item.sessionId, item] as const)
+      );
+  
+      expect(byId.get("s-list-r-green")?.trafficLight).toBe("GREEN");
+      expect(byId.get("s-list-r-yellow")?.trafficLight).toBe("YELLOW");
+      expect(byId.get("s-list-r-red")?.trafficLight).toBe("RED");
+      expect(byId.get("s-list-r-gray")?.trafficLight).toBe("GRAY");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 200 and filters session reports by status", async () => {
+    const container = buildTestContainer();
+  
+    await container.repositories.sessions.save({
+      id: "s-report-filter-completed",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "a" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "COMPLETED",
+      currentQuestionIndex: 2,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    await container.repositories.sessions.save({
+      id: "s-report-filter-asking",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "b" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "ASKING",
+      currentQuestionIndex: 1,
+      totalQuestions: 2,
+      questions: [],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+  
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/interview-sessions/reports?status=COMPLETED",
+      });
+  
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+  
+      expect(body.code).toBe("OK");
+      expect(body.data.length).toBe(1);
+      expect(body.data[0].sessionId).toBe("s-report-filter-completed");
+      expect(body.data[0].status).toBe("COMPLETED");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 400 when list session reports query is invalid", async () => {
+    const app = buildServer(buildTestContainer());
+  
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/interview-sessions/reports?limit=0",
+      });
+  
+      expect(res.statusCode).toBe(400);
+      expect(res.json().code).toBe("INVALID_QUERY");
+    } finally {
+      await app.close();
+    }
+  });
 });
