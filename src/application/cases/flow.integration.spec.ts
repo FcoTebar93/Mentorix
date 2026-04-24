@@ -5,7 +5,7 @@ import type { InterviewSessionProps } from "../../domain/interview/session/types
 import {
   InMemoryInterviewSessionRepository,
   InMemoryInterviewTemplateRepository,
-} from "../../infrastructure/memory/memory.repositories.js";
+} from "../../infrastructure/memory/memory.repository.js";
 import { SystemClock, SystemIdGenerator } from "../../infrastructure/system/system.service.js";
 import { EvaluateAnswerCase } from "../../application/cases/evaluate.case.js";
 

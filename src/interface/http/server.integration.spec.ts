@@ -378,7 +378,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
         method: "POST",
         url: "/v1/templates",
         headers: auth("u1"),
-        payload: { title: "Backend Interview", role: "Backend Engineer", level: "mid", language: "es", totalQuestions: 4, rubric: { dimensions: [{ key: "architecture", weight: 1, description: "Depth" }], passThreshold: 75 }, llmConfig: { provider: "openai", model: "gpt-4o-mini", temperature: 0.2, maxTokensPerTurn: 700 } },
+        payload: { role: "Backend Engineer" },
       });
 
       expect(res.statusCode).toBe(400);
@@ -1582,7 +1582,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
     }
   });
 
-  it("returns 403 when GET session belongs to another owner", async () => {
+  it("returns 404 when GET session belongs to another owner", async () => {
     const container = buildTestContainer();
   
     await container.repositories.sessions.save({
@@ -1611,14 +1611,14 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
         headers: auth("u2"),
       });
   
-      expect(res.statusCode).toBe(403);
-      expect(res.json().code).toBe("FORBIDDEN");
+      expect(res.statusCode).toBe(404);
+      expect(res.json().code).toBe("SESSION_NOT_FOUND");
     } finally {
       await app.close();
     }
   });
 
-  it("returns 403 when GET session report belongs to another owner", async () => {
+  it("returns 404 when GET session report belongs to another owner", async () => {
     const container = buildTestContainer();
   
     await container.repositories.sessions.save({
@@ -1659,8 +1659,8 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
         headers: auth("u2"),
       });
   
-      expect(res.statusCode).toBe(403);
-      expect(res.json().code).toBe("FORBIDDEN");
+      expect(res.statusCode).toBe(404);
+      expect(res.json().code).toBe("SESSION_NOT_FOUND");
     } finally {
       await app.close();
     }
