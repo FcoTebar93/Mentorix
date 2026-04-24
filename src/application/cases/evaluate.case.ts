@@ -29,16 +29,16 @@ export class EvaluateAnswerCase {
       if (!template){
         throw new Error("TEMPLATE_NOT_FOUND");
     }
-    const llm = this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["mock"]) ?? this.llmFactory.forTemplate(template.llmConfig);
-    
+    const llm =
+      this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["mock"]) ??
+      this.llmFactory.forTemplate(template.llmConfig);
+
     const lastAnswer = session.state.answers[session.state.answers.length - 1];
     const lastQuestion = session.state.questions[session.state.questions.length - 1];
-
-    if (!lastAnswer || !lastQuestion) throw new Error("QUESTION_OR_ANSWER_MISSING");
-
+    
     let draft;
     try {
-      draft = await this.llmFactory.forTemplate(template.llmConfig).evaluateAnswer({
+      draft = await llm.evaluateAnswer({
         question: lastQuestion.text,
         answer: lastAnswer,
         rubric: { dimensions: command.rubricDimensions },

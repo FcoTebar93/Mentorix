@@ -36,7 +36,21 @@ export class StartSessionFromLinkCase {
     if (!template){
         throw new Error("TEMPLATE_NOT_FOUND");
     }
-    const llm = this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["mock"]) ?? this.llmFactory.forTemplate(template.llmConfig);
+    const llm =
+      this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["mock"]) ??
+      this.llmFactory.forTemplate(template.llmConfig);
+
+    let generated: { text: string };
+    try {
+      generated = await llm.generateQuestion({
+        role: template.role,
+        level: template.level,
+        language: template.language,
+        previousQuestions: [],
+      });
+    } catch {
+      throw new Error("LLM_QUESTION_GENERATION_FAILED");
+    }
 
     const props: InterviewSessionProps = {
       id: this.ids.uuid(),
@@ -63,18 +77,6 @@ export class StartSessionFromLinkCase {
 
     const session = new InterviewSession(props);
     session.start(this.clock.nowISO());
-
-    let generated: { text: string };
-    try {
-      generated = await this.llmFactory.forTemplate(template.llmConfig).generateQuestion({
-        role: template.role,
-        level: template.level,
-        language: template.language,
-        previousQuestions: [],
-      });
-    } catch {
-      throw new Error("LLM_QUESTION_GENERATION_FAILED");
-    }
 
     const firstQuestion: SessionQuestion = {
       id: this.ids.uuid(),
