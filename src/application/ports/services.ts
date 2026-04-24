@@ -67,3 +67,11 @@ export interface IVoiceService {
   transcribe(input: { audioBase64: string; locale: string }): Promise<{ text: string }>;
   synthesize(input: { text: string; locale: string }): Promise<{ audioBase64: string }>;
 }
+
+export interface ILlmServiceFactory {
+  forTemplate(config: LlmInterviewConfig): ILlmService;
+  forTemplateWithFallback?(
+    config: LlmInterviewConfig,
+    fallbackProviders: LlmProvider[]
+  ): ILlmService;
+}

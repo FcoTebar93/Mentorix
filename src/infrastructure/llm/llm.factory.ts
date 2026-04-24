@@ -1,5 +1,13 @@
 import type { LlmInterviewConfig } from "../../domain/interview/template/types.js";
-import type { ILlmService, ILlmServiceFactory, LlmProvider } from "../../application/ports/services.js";
+import type {
+  ILlmService,
+  ILlmServiceFactory,
+  LlmProvider,
+  GenerateQuestionInput,
+  EvaluateAnswerInput,
+  LlmEvaluationDraft,
+  LlmUsage,
+} from "../../application/ports/services.js";
 import type { LlmProviderConfig } from "../config.llm.js";
 import { createLlmService } from "./providers/factory.js";
 
@@ -33,13 +41,61 @@ function normalizeProvider(provider: string): LlmProvider {
   return value;
 }
 
+class FallbackLlmService implements ILlmService {
+  constructor(
+    private readonly servicesInOrder: Array<{ provider: LlmProvider; service: ILlmService }>
+  ) {}
+
+  async generateQuestion(input: GenerateQuestionInput): Promise<{ text: string; usage?: LlmUsage }> {
+    let lastError: unknown;
+    for (const item of this.servicesInOrder) {
+      try {
+        return await item.service.generateQuestion(input);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError ?? new Error("LLM_QUESTION_GENERATION_FAILED");
+  }
+
+  async evaluateAnswer(input: EvaluateAnswerInput): Promise<LlmEvaluationDraft> {
+    let lastError: unknown;
+    for (const item of this.servicesInOrder) {
+      try {
+        return await item.service.evaluateAnswer(input);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError ?? new Error("LLM_EVALUATION_FAILED");
+  }
+}
+
 export class EnvLlmServiceFactory implements ILlmServiceFactory {
   constructor(private readonly env: FactoryEnv = process.env) {}
 
   forTemplate(config: LlmInterviewConfig): ILlmService {
     const provider = normalizeProvider(config.provider);
+    const resolved = this.buildConfigForProvider(config, provider);
+    return createLlmService(resolved);
+  }
 
-    const resolved: LlmProviderConfig = {
+  forTemplateWithFallback(config: LlmInterviewConfig, fallbackProviders: LlmProvider[]): ILlmService {
+    const primary = normalizeProvider(config.provider);
+    const chain = [primary, ...fallbackProviders]
+      .map((p) => normalizeProvider(p))
+      .filter((provider, idx, arr) => arr.indexOf(provider) === idx);
+
+    const servicesInOrder = chain.map((provider) => ({
+      provider,
+      service: createLlmService(this.buildConfigForProvider(config, provider)),
+    }));
+
+    return new FallbackLlmService(servicesInOrder);
+  }
+
+  private buildConfigForProvider(config: LlmInterviewConfig, provider: LlmProvider): LlmProviderConfig {
+    return {
       provider,
       apiKey: this.resolveApiKey(provider),
       baseUrl: this.resolveBaseUrl(provider),
@@ -52,8 +108,6 @@ export class EnvLlmServiceFactory implements ILlmServiceFactory {
         : asNumber(this.env.LLM_MAX_TOKENS, 700),
       timeoutMs: asNumber(this.env.LLM_TIMEOUT_MS, 20000),
     };
-
-    return createLlmService(resolved);
   }
 
   private resolveApiKey(provider: LlmProvider): string | undefined {
