@@ -8,6 +8,7 @@ import {
 } from "../../infrastructure/memory/memory.repository.js";
 import { SystemClock, SystemIdGenerator } from "../../infrastructure/system/system.service.js";
 import { EvaluateAnswerCase } from "../../application/cases/evaluate.case.js";
+import type { ILlmServiceFactory } from "../ports/services.js";
 
 describe("Use case flow integration", () => {
   it("submit -> evaluate -> complete with seeded session", async () => {
@@ -53,10 +54,15 @@ describe("Use case flow integration", () => {
           };
         },
     };
+    const llmFactory: ILlmServiceFactory = {
+      forTemplate() {
+        return llmStub;
+      },
+    };
 
     const submitCase = new SubmitAnswerCase(sessions, ids, clock);
-    const evaluateCase = new EvaluateAnswerCase(sessions, llmStub, ids, clock);
-    const completeCase = new CompleteSessionCase(sessions, templates, llmStub, ids, clock);
+    const evaluateCase = new EvaluateAnswerCase(sessions, templates, llmFactory, ids, clock);
+    const completeCase = new CompleteSessionCase(sessions, templates, llmFactory, ids, clock);
 
     const seeded: InterviewSessionProps = {
       id: "s-flow-1",
