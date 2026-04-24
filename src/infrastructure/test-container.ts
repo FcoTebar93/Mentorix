@@ -2,7 +2,7 @@ import { CompleteSessionCase } from "../application/cases/complete.case.js";
 import { EvaluateAnswerCase } from "../application/cases/evaluate.case.js";
 import { StartSessionFromLinkCase } from "../application/cases/start.case.js";
 import { SubmitAnswerCase } from "../application/cases/submit.case.js";
-import type { ILlmService } from "../application/ports/services.js";
+import type { ILlmService, ILlmServiceFactory } from "../application/ports/services.js";
 import {
   InMemoryInterviewAccessLinkRepository,
   InMemoryInterviewSessionRepository,
@@ -35,6 +35,12 @@ const defaultLlmStub: ILlmService = {
   },
 };
 
+const buildLlmFactory = (llmService: ILlmService): ILlmServiceFactory => ({
+  forTemplate() {
+    return llmService;
+  },
+});
+
 export function buildTestContainer(options: BuildTestContainerOptions = {}) {
   const templates = new InMemoryInterviewTemplateRepository();
   const links = new InMemoryInterviewAccessLinkRepository();
@@ -45,6 +51,7 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
   const tokenService = new Sha256TokenService();
 
   const llmService = options.llmService ?? defaultLlmStub;
+  const llmFactory = buildLlmFactory(llmService);
 
   const createTemplate = new CreateTemplateCase(templates, ids, clock);
   const createAccessLink = new CreateAccessLinkCase(links, templates, tokenService, ids, clock);
@@ -53,15 +60,15 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
     links,
     templates,
     sessions,
-    llmService,
+    llmFactory,
     tokenService,
     ids,
     clock
   );
 
   const submitAnswer = new SubmitAnswerCase(sessions, ids, clock);
-  const evaluateAnswer = new EvaluateAnswerCase(sessions, llmService, ids, clock);
-  const completeSession = new CompleteSessionCase(sessions, templates, llmService, ids, clock);
+  const evaluateAnswer = new EvaluateAnswerCase(sessions, templates, llmFactory, ids, clock);
+  const completeSession = new CompleteSessionCase(sessions, templates, llmFactory, ids, clock);
   const listSessions = new ListSessionsCase(sessions);
   const getSessionReport = new GetSessionReportCase(sessions);
   const listSessionReports = new ListSessionReportsCase(sessions);
@@ -69,7 +76,7 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
 
   return {
     repositories: { templates, links, sessions },
-    services: { clock, ids, tokenService, llmService },
+    services: { clock, ids, tokenService, llmService, llmFactory },
     useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn },
   };
 }

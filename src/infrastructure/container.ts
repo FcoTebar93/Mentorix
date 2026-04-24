@@ -2,8 +2,7 @@ import { CompleteSessionCase } from "../application/cases/complete.case.js";
 import { EvaluateAnswerCase } from "../application/cases/evaluate.case.js";
 import { StartSessionFromLinkCase } from "../application/cases/start.case.js";
 import { SubmitAnswerCase } from "../application/cases/submit.case.js";
-import { loadLlmConfig } from "./config.llm.js";
-import { createLlmService } from "./llm/providers/factory.js";
+import { EnvLlmServiceFactory } from "./llm/llm.factory.js";
 import { Sha256TokenService, SystemClock, SystemIdGenerator } from "./system/system.service.js";
 import { CreateTemplateCase } from "../application/cases/create-template.case.js";
 import { CreateAccessLinkCase } from "../application/cases/create-access-link.case.js";
@@ -23,9 +22,7 @@ export function buildContainer() {
   const clock = new SystemClock();
   const ids = new SystemIdGenerator();
   const tokenService = new Sha256TokenService();
-
-  const llmConfig = loadLlmConfig(process.env);
-  const llmService = createLlmService(llmConfig);
+  const llmFactory = new EnvLlmServiceFactory(process.env);
 
   const createTemplate = new CreateTemplateCase(templates, ids, clock);
   const createAccessLink = new CreateAccessLinkCase(links, templates, tokenService, ids, clock);
@@ -34,15 +31,15 @@ export function buildContainer() {
     links,
     templates,
     sessions,
-    llmService,
+    llmFactory,
     tokenService,
     ids,
     clock
   );
 
   const submitAnswer = new SubmitAnswerCase(sessions, ids, clock);
-  const evaluateAnswer = new EvaluateAnswerCase(sessions, llmService, ids, clock);
-  const completeSession = new CompleteSessionCase(sessions, templates, llmService, ids, clock);
+  const evaluateAnswer = new EvaluateAnswerCase(sessions, templates, llmFactory, ids, clock);
+  const completeSession = new CompleteSessionCase(sessions, templates, llmFactory, ids, clock);
   const listSessions = new ListSessionsCase(sessions);
   const getSessionReport = new GetSessionReportCase(sessions);
   const listSessionReports = new ListSessionReportsCase(sessions);
@@ -50,7 +47,7 @@ export function buildContainer() {
   
   return {
     repositories: { templates, links, sessions },
-    services: { clock, ids, tokenService, llmService },
+    services: { clock, ids, tokenService, llmFactory },
     useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn },
   };
 }
