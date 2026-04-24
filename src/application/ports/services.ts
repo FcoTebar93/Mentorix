@@ -1,5 +1,4 @@
-import type { SessionAnswer, SessionEvaluation, SessionQuestion } from "../../domain/interview/session/types.js";
-import type { LlmInterviewConfig } from "../../domain/interview/template/types.js";
+import type { LlmInterviewConfig, VoiceInterviewConfig } from "../../domain/interview/template/types.js";
 
 export type LlmProvider =
   | "openai"
@@ -61,17 +60,36 @@ export interface ILlmService {
 
 export interface ILlmServiceFactory {
   forTemplate(config: LlmInterviewConfig): ILlmService;
-}
-
-export interface IVoiceService {
-  transcribe(input: { audioBase64: string; locale: string }): Promise<{ text: string }>;
-  synthesize(input: { text: string; locale: string }): Promise<{ audioBase64: string }>;
-}
-
-export interface ILlmServiceFactory {
-  forTemplate(config: LlmInterviewConfig): ILlmService;
   forTemplateWithFallback?(
     config: LlmInterviewConfig,
     fallbackProviders: LlmProvider[]
   ): ILlmService;
+}
+
+export type VoiceProvider = "mock" | "openai" | "custom";
+
+export interface SttInput {
+  audioBase64: string;
+  locale: string;
+}
+
+export interface TtsInput {
+  text: string;
+  locale: string;
+}
+
+export interface ISttService {
+  transcribe(input: SttInput): Promise<{ text: string }>;
+}
+
+export interface ITtsService {
+  synthesize(input: TtsInput): Promise<{ audioBase64: string }>;
+}
+
+export interface ISttServiceFactory {
+  forVoiceConfig(config?: VoiceInterviewConfig): ISttService;
+}
+
+export interface ITtsServiceFactory {
+  forVoiceConfig(config?: VoiceInterviewConfig): ITtsService;
 }
