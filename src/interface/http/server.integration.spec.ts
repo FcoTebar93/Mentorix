@@ -1754,7 +1754,6 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
     const app = buildServer(buildTestContainer());
   
     try {
-      // 1) Owner creates template
       const templateRes = await app.inject({
         method: "POST",
         url: "/v1/templates",
@@ -1781,7 +1780,6 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       expect(templateRes.statusCode).toBe(201);
       const templateId = templateRes.json().data.id as string;
   
-      // 2) Owner creates access link (receives rawToken)
       const linkRes = await app.inject({
         method: "POST",
         url: `/v1/templates/${templateId}/access-links`,
@@ -1795,11 +1793,10 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const rawToken = linkRes.json().data.rawToken as string;
       expect(rawToken).toBeTruthy();
   
-      // 3) Candidate starts session from link
       const startRes = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/from-link",
-        headers: auth("u1"), // con tu auth actual, esta ruta también requiere header
+        headers: auth("u1"),
         payload: { rawToken, guestAlias: "candidate-e2e" },
       });
   
@@ -1816,7 +1813,6 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const sessionId = session.id;
       const questionId = session.questions[0].id;
   
-      // 4) Complete one full turn
       const turnRes = await app.inject({
         method: "POST",
         url: `/v1/interview-sessions/${sessionId}/turn`,
@@ -1833,9 +1829,8 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       expect(turnRes.json().code).toBe("OK");
       expect(turnRes.json().data.latestEvaluation).toBeTruthy();
       expect(turnRes.json().data.latestFeedback).toBeTruthy();
-      expect(turnRes.json().data.isCompleted).toBe(true); // totalQuestions=1
+      expect(turnRes.json().data.isCompleted).toBe(true);
   
-      // 5) Owner gets final report
       const reportRes = await app.inject({
         method: "GET",
         url: `/v1/interview-sessions/${sessionId}/report`,
@@ -1846,6 +1841,39 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       expect(reportRes.json().code).toBe("OK");
       expect(reportRes.json().data.sessionId).toBe(sessionId);
       expect(reportRes.json().data.evaluatedAnswers).toBeGreaterThan(0);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 400 when creating template with invalid llm provider", async () => {
+    const app = buildServer(buildTestContainer());
+    try {
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/templates",
+        headers: auth("u1"),
+        payload: {
+          title: "Template invalid provider",
+          role: "Backend Engineer",
+          level: "mid",
+          language: "es",
+          totalQuestions: 3,
+          rubric: {
+            dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+            passThreshold: 70,
+          },
+          llmConfig: {
+            provider: "foo-provider",
+            model: "gpt-4o-mini",
+            temperature: 0.2,
+            maxTokensPerTurn: 700,
+          },
+        },
+      });
+  
+      expect(res.statusCode).toBe(400);
+      expect(res.json().code).toBe("INVALID_BODY");
     } finally {
       await app.close();
     }
