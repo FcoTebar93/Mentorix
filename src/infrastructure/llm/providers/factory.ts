@@ -4,6 +4,7 @@ import type { LlmProviderConfig } from "../../config.llm.js";
 import { AnthropicProvider } from "./anthropic.provider.js";
 import { CustomProvider } from "./custom.provider.js";
 import { GeminiProvider } from "./gemini.provider.js";
+import { MockProvider } from "./mock.provider.js";
 import { OllamaProvider } from "./ollama.provider.js";
 import { OpenAiProvider } from "./openai.provider.js";
 
@@ -21,6 +22,8 @@ export function createLlmService(cfg: LlmProviderConfig): ILlmService {
       throw new Error("AZURE_PROVIDER_NOT_IMPLEMENTED_YET");
     case "custom":
       return new CustomProvider(cfg);
+    case "mock":
+      return new MockProvider();
     default:
       throw new Error(`UNSUPPORTED_LLM_PROVIDER: ${(cfg as any).provider}`);
   }
