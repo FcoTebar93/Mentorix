@@ -23,12 +23,9 @@ export class GetSessionReportCase {
   constructor(private readonly sessions: InterviewSessionRepository) {}
 
   async execute(query: GetSessionReportQuery): Promise<SessionReport> {
-    const session = await this.sessions.getById(query.sessionId);
+    const session = await this.sessions.getByIdForOwner(query.sessionId, query.ownerUserId);
     if (!session){
       throw new Error("SESSION_NOT_FOUND");
-    } 
-    if (session.ownerUserId !== query.ownerUserId){
-      throw new Error("FORBIDDEN");
     }
   
     const evaluations = session.evaluations ?? [];
