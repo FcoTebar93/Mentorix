@@ -80,7 +80,7 @@ export class PgInterviewSessionRepository implements InterviewSessionRepository 
       ownerUserId ? eq(interviewSessionsTable.ownerUserId, ownerUserId) : undefined,
       status ? eq(interviewSessionsTable.status, status) : undefined,
     ].filter(Boolean);
-    
+
     const rows = await getDb()
       .select()
       .from(interviewSessionsTable)
@@ -105,5 +105,39 @@ export class PgInterviewSessionRepository implements InterviewSessionRepository 
       endedAt: row.endedAt ? row.endedAt.toISOString() : undefined,
       version: row.version,
     }));
+  }
+
+  async getByIdForOwner(id: string, ownerUserId: string): Promise<InterviewSessionProps | null> {
+    const rows = await getDb()
+      .select()
+      .from(interviewSessionsTable)
+      .where(
+        and(
+          eq(interviewSessionsTable.id, id),
+          eq(interviewSessionsTable.ownerUserId, ownerUserId)
+        )
+      )
+      .limit(1);
+  
+    const row = rows[0];
+    if (!row) return null;
+  
+    return {
+      id: row.id,
+      templateId: row.templateId,
+      ownerUserId: row.ownerUserId,
+      participant: row.participant as InterviewSessionProps["participant"],
+      entryPoint: row.entryPoint as InterviewSessionProps["entryPoint"],
+      status: row.status as InterviewSessionProps["status"],
+      currentQuestionIndex: row.currentQuestionIndex,
+      totalQuestions: row.totalQuestions,
+      questions: row.questions as InterviewSessionProps["questions"],
+      answers: row.answers as InterviewSessionProps["answers"],
+      evaluations: row.evaluations as InterviewSessionProps["evaluations"],
+      feedbackItems: row.feedbackItems as InterviewSessionProps["feedbackItems"],
+      startedAt: row.startedAt ? row.startedAt.toISOString() : undefined,
+      endedAt: row.endedAt ? row.endedAt.toISOString() : undefined,
+      version: row.version,
+    };
   }
 }
