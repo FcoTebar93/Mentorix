@@ -26,7 +26,11 @@ export class EvaluateAnswerCase {
 
     const session = new InterviewSession(stored);
     const template = await this.templates.getById(session.state.templateId);
-    if (!template) throw new Error("TEMPLATE_NOT_FOUND");
+      if (!template){
+        throw new Error("TEMPLATE_NOT_FOUND");
+    }
+    const llm = this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["mock"]) ?? this.llmFactory.forTemplate(template.llmConfig);
+    
     const lastAnswer = session.state.answers[session.state.answers.length - 1];
     const lastQuestion = session.state.questions[session.state.questions.length - 1];
 

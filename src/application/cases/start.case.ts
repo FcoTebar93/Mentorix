@@ -33,7 +33,10 @@ export class StartSessionFromLinkCase {
     }
 
     const template = await this.templates.getById(link.templateId);
-    if (!template) throw new Error("TEMPLATE_NOT_FOUND");
+    if (!template){
+        throw new Error("TEMPLATE_NOT_FOUND");
+    }
+    const llm = this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["mock"]) ?? this.llmFactory.forTemplate(template.llmConfig);
 
     const props: InterviewSessionProps = {
       id: this.ids.uuid(),

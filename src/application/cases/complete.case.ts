@@ -30,7 +30,10 @@ export class CompleteSessionCase {
 
     if (session.state.status === "ASKING") {
       const template = await this.templates.getById(session.state.templateId);
-      if (!template) throw new Error("TEMPLATE_NOT_FOUND");
+      if (!template){
+        throw new Error("TEMPLATE_NOT_FOUND");
+      }
+      const llm = this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["mock"]) ?? this.llmFactory.forTemplate(template.llmConfig);
 
       let generated: { text: string };
       try {
