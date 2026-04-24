@@ -1,4 +1,5 @@
 import type { SessionAnswer, SessionEvaluation, SessionQuestion } from "../../domain/interview/session/types.js";
+import type { LlmInterviewConfig } from "../../domain/interview/template/types.js";
 
 export type LlmProvider =
   | "openai"
@@ -56,6 +57,10 @@ export interface GenerateQuestionInput {
 export interface ILlmService {
     generateQuestion(input: GenerateQuestionInput): Promise<{ text: string; usage?: LlmUsage }>;
     evaluateAnswer(input: EvaluateAnswerInput): Promise<LlmEvaluationDraft>;
+}
+
+export interface ILlmServiceFactory {
+  forTemplate(config: LlmInterviewConfig): ILlmService;
 }
 
 export interface IVoiceService {
