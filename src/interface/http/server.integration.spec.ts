@@ -2,14 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { InterviewSessionProps } from "../../domain/interview/session/types.js";
 import { buildTestContainer } from "../../infrastructure/test-container.js";
 import { buildServer } from "./server.js";
+import { auth } from "./tests/helpers.js";
 
-const auth = (userId: string) => ({
-  authorization: `Bearer test-user:${userId}`,
-});
+const buildContainer = buildTestContainer;
 
 describe("HTTP interview flow", { timeout: 15000 }, () => {
   it("returns 400 when evaluate body is invalid", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "POST",
@@ -26,7 +25,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 404 when session does not exist on submit", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "POST",
@@ -43,7 +42,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 404 when session does not exist on complete", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "POST",
@@ -59,7 +58,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 404 when GET session does not exist", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "GET",
@@ -75,7 +74,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 when GET session exists", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
 
     const seeded: InterviewSessionProps = {
       id: "s-get-1",
@@ -113,7 +112,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 400 when submit answer body is invalid", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "POST",
@@ -130,7 +129,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 and transitions session to EVALUATING on valid submit", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
 
     await container.repositories.sessions.save({
       id: "s-submit-1",
@@ -182,7 +181,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 404 when evaluate session does not exist", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "POST",
@@ -199,7 +198,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 and transitions to FEEDBACKING on valid evaluate", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
 
     await container.repositories.templates.save({
       id: "t1",
@@ -278,7 +277,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 404 when complete session does not exist", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "POST",
@@ -294,7 +293,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 and completes session when in FEEDBACKING and last question", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
 
     await container.repositories.sessions.save({
       id: "s-complete-1",
@@ -359,7 +358,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 409 when complete is called from invalid state", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
 
     await container.repositories.sessions.save({
       id: "s-complete-invalid",
@@ -395,7 +394,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 400 when create template body is invalid", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "POST",
@@ -412,7 +411,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 201 when creating template", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "POST",
@@ -449,7 +448,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 400 when create access-link payload is invalid", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "POST",
@@ -465,7 +464,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 201 when creating access link for existing template", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const templateRes = await app.inject({
         method: "POST",
@@ -519,7 +518,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 and lists sessions", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
   
     await container.repositories.sessions.save({
       id: "s-list-1",
@@ -557,7 +556,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 and filters sessions by status", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
   
     await container.repositories.sessions.save({
       id: "s-list-2",
@@ -613,7 +612,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 400 when list sessions query is invalid", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "GET",
@@ -628,39 +627,8 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
     }
   });
 
-  it("returns 200 on /health/live", async () => {
-    const app = buildServer(buildTestContainer());
-    try {
-      const res = await app.inject({
-        method: "GET",
-        url: "/health/live",
-        headers: auth("u1"),
-      });
-  
-      expect(res.statusCode).toBe(200);
-      expect(res.json().status).toBe("live");
-    } finally {
-      await app.close();
-    }
-  });
-
-  it("returns 200 on /health/ready when db is reachable", async () => {
-    const app = buildServer(buildTestContainer());
-    try {
-      const res = await app.inject({
-        method: "GET",
-        url: "/health/ready",
-        headers: auth("u1"),
-      });
-  
-      expect([200, 503]).toContain(res.statusCode);
-    } finally {
-      await app.close();
-    }
-  });
-
   it("returns 404 when session report does not exist", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "GET",
@@ -676,7 +644,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 with computed session report", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
   
     await container.repositories.sessions.save({
       id: "s-report-1",
@@ -744,7 +712,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("GET /v1/interview-sessions/:id/report calcula dimensionAverages y confidenceAverage", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
     const sessionId = "s-report-2";
   
     await container.repositories.sessions.save({
@@ -810,7 +778,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("GET /v1/interview-sessions/:id/report incluye recommendation según overallScore", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
     const sessionId = "s-report-3";
   
     await container.repositories.sessions.save({
@@ -875,7 +843,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 and lists session reports with trafficLight", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
   
     await container.repositories.sessions.save({
       id: "s-list-r-green",
@@ -1014,7 +982,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 and filters session reports by status", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
   
     await container.repositories.sessions.save({
       id: "s-report-filter-completed",
@@ -1073,7 +1041,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 400 when list session reports query is invalid", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
   
     try {
       const res = await app.inject({
@@ -1090,7 +1058,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 201 and includes first generated question when starting from link (seed directo)", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
     const app = buildServer(container);
   
     try {
@@ -1235,7 +1203,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 and generates next question when complete is called mid-flow", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
     const app = buildServer(container);
   
     try {
@@ -1427,7 +1395,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 and advances turn with next question when session is mid-flow", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
     const app = buildServer(container);
   
     try {
@@ -1505,7 +1473,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
   
   it("returns 200 and marks turn as completed on last question", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
     const app = buildServer(container);
   
     try {
@@ -1583,7 +1551,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
   
   it("returns 400 when turn body is invalid", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
   
     try {
       const res = await app.inject({
@@ -1606,7 +1574,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 404 when GET session belongs to another owner", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
   
     await container.repositories.sessions.save({
       id: "s-owner-403-1",
@@ -1642,7 +1610,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 404 when GET session report belongs to another owner", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
   
     await container.repositories.sessions.save({
       id: "s-report-owner-403-1",
@@ -1690,7 +1658,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 200 and lists session reports only for authenticated owner", async () => {
-    const container = buildTestContainer();
+    const container = buildContainer();
   
     await container.repositories.sessions.save({
       id: "s-reports-owner-u1",
@@ -1774,7 +1742,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("E2E: authenticated owner creates template/link, guest starts session, completes turn, and owner gets report", async () => {
-    const app = buildServer(buildTestContainer());
+    const app = buildServer(buildContainer());
   
     try {
       const templateRes = await app.inject({
@@ -1870,7 +1838,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   });
 
   it("returns 400 when creating template with invalid llm provider", async () => {
-    const app = buildServer(buildTestContainer());
+      const app = buildServer(buildContainer());
     try {
       const res = await app.inject({
         method: "POST",
