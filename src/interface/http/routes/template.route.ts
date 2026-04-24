@@ -3,6 +3,23 @@ import type { RegisterRoutes } from "./types.js";
 import { mapErrorToHttp } from "../mappers/http-error.js";
 import { requireAuth } from "../auth.handler.js";
 
+const LlmProviderSchema = z.enum([
+  "openai",
+  "anthropic",
+  "google",
+  "azure",
+  "ollama",
+  "custom",
+  "mock",
+]);
+
+const LlmConfigSchema = z.object({
+  provider: LlmProviderSchema,
+  model: z.string().min(1),
+  temperature: z.number().min(0).max(2),
+  maxTokensPerTurn: z.number().int().positive().max(8000),
+});
+
 const CreateTemplateBodySchema = z.object({
   title: z.string().min(1),
   role: z.string().min(1),
@@ -19,12 +36,7 @@ const CreateTemplateBodySchema = z.object({
     ),
     passThreshold: z.number().min(0).max(100),
   }),
-  llmConfig: z.object({
-    provider: z.string().min(1),
-    model: z.string().min(1),
-    temperature: z.number().min(0).max(2),
-    maxTokensPerTurn: z.number().int().positive(),
-  }),
+  llmConfig: LlmConfigSchema,
   voiceConfig: z
     .object({
       sttProvider: z.string().min(1),
@@ -57,11 +69,19 @@ export const registerTemplateRoutes: RegisterRoutes = (app, container) => {
         llmConfig: parsedBody.data.llmConfig,
         voiceConfig: parsedBody.data.voiceConfig,
       });
-      return reply.code(201).send({ code: "OK", data: template });
+
+      return reply.code(201).send({
+        code: "OK",
+        data: template,
+      });
     } catch (error) {
       request.log.error({ error }, "create template failed");
       const mapped = mapErrorToHttp(error);
-      return reply.code(mapped.statusCode).send({ code: mapped.code, message: mapped.message });
+
+      return reply.code(mapped.statusCode).send({
+        code: mapped.code,
+        message: mapped.message,
+      });
     }
   });
 };

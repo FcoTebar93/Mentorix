@@ -1,6 +1,15 @@
 export type UUID = string;
 export type ISODateString = string;
 
+export type LlmProvider =
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "azure"
+  | "ollama"
+  | "custom"
+  | "mock";
+
 export interface RubricDimension {
   key: string;
   weight: number;
@@ -13,7 +22,7 @@ export interface EvaluationRubric {
 }
 
 export interface LlmInterviewConfig {
-  provider: string;
+  provider: LlmProvider;
   model: string;
   temperature: number;
   maxTokensPerTurn: number;
