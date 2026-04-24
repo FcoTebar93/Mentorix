@@ -4,7 +4,6 @@ import { mapErrorToHttp } from "../mappers/http-error.js";
 import { requireAuth } from "../auth.handler.js";
 
 const CreateTemplateBodySchema = z.object({
-  ownerUserId: z.string().min(1),
   title: z.string().min(1),
   role: z.string().min(1),
   level: z.enum(["junior", "mid", "senior"]),

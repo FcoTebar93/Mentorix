@@ -57,10 +57,6 @@ export function mapErrorToHttp(error: unknown): HttpErrorShape {
         return { statusCode: 403, code: "ACCESS_LINK_MAX_USES_REACHED", message: "Access link max uses reached" };
       case "SESSION_NOT_FOUND":
         return { statusCode: 404, code: "SESSION_NOT_FOUND", message: "Session not found" };
-      case "ACCESS_LINK_NOT_FOUND":
-        return { statusCode: 404, code: "ACCESS_LINK_NOT_FOUND", message: "Access link not found" };
-      case "ACCESS_LINK_MAX_USES_REACHED":
-        return { statusCode: 410, code: error.message, message: "Access link not valid" };
       case "TEMPLATE_NOT_FOUND":
         return { statusCode: 404, code: "TEMPLATE_NOT_FOUND", message: "Template not found" };
       case "RUBRIC_DIMENSIONS_REQUIRED":
