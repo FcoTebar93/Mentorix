@@ -7,7 +7,7 @@ import {
   InMemoryInterviewAccessLinkRepository,
   InMemoryInterviewSessionRepository,
   InMemoryInterviewTemplateRepository,
-} from "./memory/memory.repositories.js";
+} from "./memory/memory.repository.js";
 import { Sha256TokenService, SystemClock, SystemIdGenerator } from "./system/system.service.js";
 import { CreateTemplateCase } from "../application/cases/create-template.case.js";
 import { CreateAccessLinkCase } from "../application/cases/create-access-link.case.js";

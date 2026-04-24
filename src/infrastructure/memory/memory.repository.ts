@@ -64,4 +64,11 @@ export class InMemoryInterviewSessionRepository implements InterviewSessionRepos
     
       return items;
     }
+
+    async getByIdForOwner(id: UUID, ownerUserId: UUID): Promise<InterviewSessionProps | null> {
+      const value = this.store.get(id);
+      if (!value) return null;
+      if (value.ownerUserId !== ownerUserId) return null;
+      return structuredClone(value);
+    }
 }
