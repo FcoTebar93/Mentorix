@@ -71,7 +71,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     }
   });
 
-  app.post("/v1/interview-sessions/:sessionId/answers", async (request, reply) => {
+  app.post("/v1/interview-sessions/:sessionId/answers", {preHandler: requireAuth}, async (request, reply) => {
     const parsedParams = SessionParamsSchema.safeParse(request.params);
     if (!parsedParams.success) {
       return reply.code(400).send({
@@ -106,7 +106,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     }
   });
 
-  app.post("/v1/interview-sessions/:sessionId/evaluate", async (request, reply) => {
+  app.post("/v1/interview-sessions/:sessionId/evaluate", {preHandler: requireAuth}, async (request, reply) => {
     const parsedParams = SessionParamsSchema.safeParse(request.params);
     if (!parsedParams.success) {
       return reply.code(400).send({
@@ -139,7 +139,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     }
   });
 
-  app.post("/v1/interview-sessions/:sessionId/complete", async (request, reply) => {
+  app.post("/v1/interview-sessions/:sessionId/complete", {preHandler: requireAuth}, async (request, reply) => {
     const parsedParams = SessionParamsSchema.safeParse(request.params);
     if (!parsedParams.success) {
       return reply.code(400).send({
@@ -162,7 +162,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     }
   });
 
-  app.get("/v1/interview-sessions", async (request, reply) => {
+  app.get("/v1/interview-sessions", {preHandler: requireAuth}, async (request, reply) => {
     const parsedQuery = ListSessionsQuerySchema.safeParse(request.query);
     if (!parsedQuery.success) {
       return reply.code(400).send({
@@ -192,7 +192,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     }
   });
 
-  app.get("/v1/interview-sessions/:sessionId/report", async (request, reply) => {
+  app.get("/v1/interview-sessions/:sessionId/report", {preHandler: requireAuth}, async (request, reply) => {
     const parsedParams = SessionParamsSchema.safeParse(request.params);
   
     if (!parsedParams.success) {
@@ -220,7 +220,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     }
   });
 
-  app.get("/v1/interview-sessions/reports", async (request, reply) => {
+  app.get("/v1/interview-sessions/reports", {preHandler: requireAuth}, async (request, reply) => {
     const parsedQuery = ListSessionReportsQuerySchema.safeParse(request.query);
     if (!parsedQuery.success) {
       return reply.code(400).send({
@@ -250,7 +250,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     }
   });
 
-  app.post("/v1/interview-sessions/:sessionId/turn", async (request, reply) => {
+  app.post("/v1/interview-sessions/:sessionId/turn", {preHandler: requireAuth}, async (request, reply) => {
     const parsedParams = SessionParamsSchema.safeParse(request.params);
     if (!parsedParams.success) {
       return reply.code(400).send({
