@@ -201,6 +201,29 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   it("returns 200 and transitions to FEEDBACKING on valid evaluate", async () => {
     const container = buildTestContainer();
 
+    await container.repositories.templates.save({
+      id: "t1",
+      ownerUserId: "u1",
+      title: "Template test",
+      role: "Backend Engineer",
+      level: "mid",
+      language: "es",
+      totalQuestions: 1,
+      rubric: {
+        dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+        passThreshold: 70,
+      },
+      llmConfig: {
+        provider: "mock",
+        model: "mock-model-v1",
+        temperature: 0.2,
+        maxTokensPerTurn: 700,
+      },
+      isArchived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
     await container.repositories.sessions.save({
       id: "s-eval-1",
       templateId: "t1",
@@ -1487,9 +1510,9 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   
     try {
       await container.repositories.templates.save({
-        id: "t-turn-last-1",
+        id: "t1",
         ownerUserId: "u1",
-        title: "Turn Interview Last",
+        title: "Template test",
         role: "Backend Engineer",
         level: "mid",
         language: "es",
@@ -1499,10 +1522,10 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
           passThreshold: 70,
         },
         llmConfig: {
-          provider: "openai",
-          model: "gpt-4o-mini",
+          provider: "mock",
+          model: "mock-model-v1",
           temperature: 0.2,
-          maxTokensPerTurn: 600,
+          maxTokensPerTurn: 700,
         },
         isArchived: false,
         createdAt: new Date().toISOString(),
@@ -1511,7 +1534,7 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
   
       await container.repositories.sessions.save({
         id: "s-turn-last-1",
-        templateId: "t-turn-last-1",
+        templateId: "t1",
         ownerUserId: "u1",
         participant: { type: "guest", guestAlias: "Fran" },
         entryPoint: { mode: "shared_link", accessLinkId: "l1" },
