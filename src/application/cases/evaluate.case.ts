@@ -1,6 +1,6 @@
 import { InterviewSession } from "../../domain/interview/session/session.aggregate.js";
-import type { InterviewSessionRepository } from "../ports/repositories.js";
-import type { Clock, ILlmService, IdGenerator } from "../ports/services.js";
+import type { InterviewSessionRepository, InterviewTemplateRepository } from "../ports/repositories.js";
+import type { Clock, ILlmServiceFactory, IdGenerator } from "../ports/services.js";
 
 export interface EvaluateAnswerCommand {
   sessionId: string;
@@ -10,7 +10,8 @@ export interface EvaluateAnswerCommand {
 export class EvaluateAnswerCase {
   constructor(
     private readonly sessions: InterviewSessionRepository,
-    private readonly llm: ILlmService,
+    private readonly templates: InterviewTemplateRepository,
+    private readonly llmFactory: ILlmServiceFactory,
     private readonly ids: IdGenerator,
     private readonly clock: Clock
   ) {}
@@ -24,6 +25,8 @@ export class EvaluateAnswerCase {
     }
 
     const session = new InterviewSession(stored);
+    const template = await this.templates.getById(session.state.templateId);
+    if (!template) throw new Error("TEMPLATE_NOT_FOUND");
     const lastAnswer = session.state.answers[session.state.answers.length - 1];
     const lastQuestion = session.state.questions[session.state.questions.length - 1];
 
@@ -31,7 +34,7 @@ export class EvaluateAnswerCase {
 
     let draft;
     try {
-      draft = await this.llm.evaluateAnswer({
+      draft = await this.llmFactory.forTemplate(template.llmConfig).evaluateAnswer({
         question: lastQuestion.text,
         answer: lastAnswer,
         rubric: { dimensions: command.rubricDimensions },

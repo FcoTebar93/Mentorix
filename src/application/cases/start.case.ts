@@ -1,7 +1,7 @@
 import { InterviewSession } from "../../domain/interview/session/session.aggregate.js";
 import type { InterviewSessionProps, SessionQuestion } from "../../domain/interview/session/types.js";
 import type { InterviewAccessLinkRepository, InterviewSessionRepository, InterviewTemplateRepository } from "../ports/repositories.js";
-import type { Clock, IdGenerator, ILlmService, TokenService } from "../ports/services.js";
+import type { Clock, IdGenerator, ILlmServiceFactory, TokenService } from "../ports/services.js";
 
 export interface StartFromLinkCommand {
   rawToken: string;
@@ -14,7 +14,7 @@ export class StartSessionFromLinkCase {
     private readonly links: InterviewAccessLinkRepository,
     private readonly templates: InterviewTemplateRepository,
     private readonly sessions: InterviewSessionRepository,
-    private readonly llm: ILlmService,
+    private readonly llmFactory: ILlmServiceFactory,
     private readonly tokenService: TokenService,
     private readonly ids: IdGenerator,
     private readonly clock: Clock
@@ -63,7 +63,7 @@ export class StartSessionFromLinkCase {
 
     let generated: { text: string };
     try {
-      generated = await this.llm.generateQuestion({
+      generated = await this.llmFactory.forTemplate(template.llmConfig).generateQuestion({
         role: template.role,
         level: template.level,
         language: template.language,

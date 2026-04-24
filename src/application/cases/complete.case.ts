@@ -4,7 +4,7 @@ import type {
   InterviewSessionRepository,
   InterviewTemplateRepository,
 } from "../ports/repositories.js";
-import type { Clock, ILlmService, IdGenerator } from "../ports/services.js";
+import type { Clock, ILlmServiceFactory, IdGenerator } from "../ports/services.js";
 
 export interface CompleteSessionCommand {
   sessionId: string;
@@ -14,7 +14,7 @@ export class CompleteSessionCase {
   constructor(
     private readonly sessions: InterviewSessionRepository,
     private readonly templates: InterviewTemplateRepository,
-    private readonly llm: ILlmService,
+    private readonly llmFactory: ILlmServiceFactory,
     private readonly ids: IdGenerator,
     private readonly clock: Clock
   ) {}
@@ -34,7 +34,7 @@ export class CompleteSessionCase {
 
       let generated: { text: string };
       try {
-        generated = await this.llm.generateQuestion({
+        generated = await this.llmFactory.forTemplate(template.llmConfig).generateQuestion({
           role: template.role,
           level: template.level,
           language: template.language,
