@@ -13,6 +13,7 @@ import { ListSessionsCase } from "../application/cases/list-sessions.case.js";
 import { GetSessionReportCase } from "../application/cases/get-session.case.js";
 import { ListSessionReportsCase } from "../application/cases/list-reports.case.js";
 import { CompleteTurnCase } from "../application/cases/complete-turn.case.js";
+import { EnvSttServiceFactory, EnvTtsServiceFactory } from "./voice/voice.factory.js";
 
 export function buildContainer() {
   const templates = new PgInterviewTemplateRepository();
@@ -23,6 +24,10 @@ export function buildContainer() {
   const ids = new SystemIdGenerator();
   const tokenService = new Sha256TokenService();
   const llmFactory = new EnvLlmServiceFactory(process.env);
+  const sttFactory = new EnvSttServiceFactory(process.env);
+  const ttsFactory = new EnvTtsServiceFactory(process.env);
+  const sttService = sttFactory.forVoiceConfig();
+  const ttsService = ttsFactory.forVoiceConfig();
 
   const createTemplate = new CreateTemplateCase(templates, ids, clock);
   const createAccessLink = new CreateAccessLinkCase(links, templates, tokenService, ids, clock);
@@ -47,7 +52,7 @@ export function buildContainer() {
   
   return {
     repositories: { templates, links, sessions },
-    services: { clock, ids, tokenService, llmFactory },
+    services: { clock, ids, tokenService, llmFactory, sttFactory, ttsFactory, sttService, ttsService },
     useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn },
   };
 }

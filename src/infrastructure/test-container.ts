@@ -2,7 +2,14 @@ import { CompleteSessionCase } from "../application/cases/complete.case.js";
 import { EvaluateAnswerCase } from "../application/cases/evaluate.case.js";
 import { StartSessionFromLinkCase } from "../application/cases/start.case.js";
 import { SubmitAnswerCase } from "../application/cases/submit.case.js";
-import type { ILlmService, ILlmServiceFactory } from "../application/ports/services.js";
+import type {
+  ILlmService,
+  ILlmServiceFactory,
+  ISttService,
+  ISttServiceFactory,
+  ITtsService,
+  ITtsServiceFactory,
+} from "../application/ports/services.js";
 import {
   InMemoryInterviewAccessLinkRepository,
   InMemoryInterviewSessionRepository,
@@ -18,6 +25,8 @@ import { CompleteTurnCase } from "../application/cases/complete-turn.case.js";
 
 type BuildTestContainerOptions = {
   llmService?: ILlmService;
+  sttService?: ISttService;
+  ttsService?: ITtsService;
 };
 
 const defaultLlmStub: ILlmService = {
@@ -41,6 +50,30 @@ const buildLlmFactory = (llmService: ILlmService): ILlmServiceFactory => ({
   },
 });
 
+const defaultSttStub: ISttService = {
+  async transcribe() {
+    return { text: "stub-transcription" };
+  },
+};
+
+const defaultTtsStub: ITtsService = {
+  async synthesize() {
+    return { audioBase64: Buffer.from("stub-audio", "utf-8").toString("base64") };
+  },
+};
+
+const buildSttFactory = (sttService: ISttService): ISttServiceFactory => ({
+  forVoiceConfig() {
+    return sttService;
+  },
+});
+
+const buildTtsFactory = (ttsService: ITtsService): ITtsServiceFactory => ({
+  forVoiceConfig() {
+    return ttsService;
+  },
+});
+
 export function buildTestContainer(options: BuildTestContainerOptions = {}) {
   const templates = new InMemoryInterviewTemplateRepository();
   const links = new InMemoryInterviewAccessLinkRepository();
@@ -52,6 +85,10 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
 
   const llmService = options.llmService ?? defaultLlmStub;
   const llmFactory = buildLlmFactory(llmService);
+  const sttService = options.sttService ?? defaultSttStub;
+  const ttsService = options.ttsService ?? defaultTtsStub;
+  const sttFactory = buildSttFactory(sttService);
+  const ttsFactory = buildTtsFactory(ttsService);
 
   const createTemplate = new CreateTemplateCase(templates, ids, clock);
   const createAccessLink = new CreateAccessLinkCase(links, templates, tokenService, ids, clock);
@@ -76,7 +113,17 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
 
   return {
     repositories: { templates, links, sessions },
-    services: { clock, ids, tokenService, llmService, llmFactory },
+    services: {
+      clock,
+      ids,
+      tokenService,
+      llmService,
+      llmFactory,
+      sttService,
+      ttsService,
+      sttFactory,
+      ttsFactory,
+    },
     useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn },
   };
 }
