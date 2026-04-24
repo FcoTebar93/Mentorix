@@ -1617,4 +1617,136 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       await app.close();
     }
   });
+
+  it("returns 403 when GET session report belongs to another owner", async () => {
+    const container = buildTestContainer();
+  
+    await container.repositories.sessions.save({
+      id: "s-report-owner-403-1",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "test" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "COMPLETED",
+      currentQuestionIndex: 1,
+      totalQuestions: 1,
+      questions: [],
+      answers: [],
+      evaluations: [
+        {
+          id: "e1",
+          answerId: "a1",
+          score: 80,
+          dimensionScores: { architecture: 80 },
+          strengths: ["claridad"],
+          improvements: ["más profundidad"],
+          confidence: 0.9,
+          evaluatedAt: new Date().toISOString(),
+        },
+      ],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+  
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/interview-sessions/s-report-owner-403-1/report",
+        headers: auth("u2"),
+      });
+  
+      expect(res.statusCode).toBe(403);
+      expect(res.json().code).toBe("FORBIDDEN");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 200 and lists session reports only for authenticated owner", async () => {
+    const container = buildTestContainer();
+  
+    await container.repositories.sessions.save({
+      id: "s-reports-owner-u1",
+      templateId: "t1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "u1" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "COMPLETED",
+      currentQuestionIndex: 1,
+      totalQuestions: 1,
+      questions: [],
+      answers: [],
+      evaluations: [
+        {
+          id: "e-u1",
+          answerId: "a-u1",
+          score: 85,
+          dimensionScores: { architecture: 85 },
+          strengths: [],
+          improvements: [],
+          confidence: 0.9,
+          evaluatedAt: new Date().toISOString(),
+        },
+      ],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    await container.repositories.sessions.save({
+      id: "s-reports-owner-u2",
+      templateId: "t2",
+      ownerUserId: "u2",
+      participant: { type: "guest", guestAlias: "u2" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l2" },
+      status: "COMPLETED",
+      currentQuestionIndex: 1,
+      totalQuestions: 1,
+      questions: [],
+      answers: [],
+      evaluations: [
+        {
+          id: "e-u2",
+          answerId: "a-u2",
+          score: 70,
+          dimensionScores: { architecture: 70 },
+          strengths: [],
+          improvements: [],
+          confidence: 0.7,
+          evaluatedAt: new Date().toISOString(),
+        },
+      ],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      version: 1,
+    });
+  
+    const app = buildServer(container);
+  
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/interview-sessions/reports",
+        headers: auth("u1"),
+      });
+  
+      expect(res.statusCode).toBe(200);
+      const body = res.json<{ code: string; data: Array<{ sessionId: string }> }>();
+  
+      expect(body.code).toBe("OK");
+      expect(Array.isArray(body.data)).toBe(true);
+  
+      const ids = body.data.map((x) => x.sessionId);
+      expect(ids).toContain("s-reports-owner-u1");
+      expect(ids).not.toContain("s-reports-owner-u2");
+    } finally {
+      await app.close();
+    }
+  });
 });
