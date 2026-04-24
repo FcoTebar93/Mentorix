@@ -16,5 +16,6 @@ export interface InterviewAccessLinkRepository {
 export interface InterviewSessionRepository {
   save(session: InterviewSessionProps): Promise<void>;
   getById(id: UUID): Promise<InterviewSessionProps | null>;
+  getByIdForOwner(id: UUID, ownerUserId: UUID): Promise<InterviewSessionProps | null>;
   list(params?: { ownerUserId?: string; status?: string; limit?: number }): Promise<InterviewSessionProps[]>;
 }
