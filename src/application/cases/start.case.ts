@@ -37,7 +37,7 @@ export class StartSessionFromLinkCase {
         throw new Error("TEMPLATE_NOT_FOUND");
     }
     const llm =
-      this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["mock"]) ??
+      this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["custom"]) ??
       this.llmFactory.forTemplate(template.llmConfig);
 
     let generated: { text: string };

@@ -30,7 +30,7 @@ export class EvaluateAnswerCase {
         throw new Error("TEMPLATE_NOT_FOUND");
     }
     const llm =
-      this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["mock"]) ??
+      this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["custom"]) ??
       this.llmFactory.forTemplate(template.llmConfig);
 
     const lastAnswer = session.state.answers[session.state.answers.length - 1];
