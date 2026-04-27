@@ -6,8 +6,7 @@ export type LlmProvider =
   | "google"
   | "azure"
   | "ollama"
-  | "custom"
-  | "mock";
+  | "custom";
 
 export interface TokenService {
   generateSecureToken(): Promise<string>;
