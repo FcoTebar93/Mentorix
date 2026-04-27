@@ -66,7 +66,7 @@ export interface ILlmServiceFactory {
   ): ILlmService;
 }
 
-export type VoiceProvider = "mock" | "openai" | "custom";
+export type VoiceProvider = "openai" | "custom";
 
 export interface SttInput {
   audioBase64: string;
