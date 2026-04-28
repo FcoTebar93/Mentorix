@@ -9,7 +9,10 @@ import type {
 } from "../interview/types.js";
 import type { SessionListItem, ListSessionsQuery } from "../interview/types.js";
 
-const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000";
+const API_BASE_URL =
+  (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_API_URL ??
+  process.env.API_BASE_URL ??
+  "http://localhost:4000";
 
 const AUTH_HEADER = { Authorization: "Bearer test-user:u1" };
 
