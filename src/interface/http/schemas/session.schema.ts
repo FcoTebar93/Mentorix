@@ -50,3 +50,17 @@ export const CompleteTurnBodySchema = z.object({
     )
     .min(1),
 });
+
+export const VoiceTurnBodySchema = z.object({
+  questionId: z.string().min(1),
+  answerAudioBase64: z.string().min(1),
+  locale: z.string().min(2),
+  rubricDimensions: z
+    .array(
+      z.object({
+        key: z.string().min(1),
+        weight: z.number().positive(),
+      })
+    )
+    .min(1),
+});

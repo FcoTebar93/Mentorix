@@ -6,7 +6,8 @@ import {
   EvaluateBodySchema,
   ListSessionsQuerySchema,
   ListSessionReportsQuerySchema,
-  CompleteTurnBodySchema
+  CompleteTurnBodySchema,
+  VoiceTurnBodySchema
 } from "../schemas/session.schema.js";
 import { mapErrorToHttp } from "../mappers/http-error.js";
 import { requireAuth } from "../auth.handler.js";
@@ -278,6 +279,42 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
       return reply.code(200).send({ code: "OK", data: result });
     } catch (error) {
       request.log.error({ error }, "advance turn failed");
+      const mapped = mapErrorToHttp(error);
+      return reply.code(mapped.statusCode).send({ code: mapped.code, message: mapped.message });
+    }
+  });
+
+  app.post("/v1/interview-sessions/:sessionId/voice-turn", { preHandler: requireAuth }, async (request, reply) => {
+    const parsedParams = SessionParamsSchema.safeParse(request.params);
+    if (!parsedParams.success) {
+      return reply.code(400).send({
+        code: "INVALID_PARAMS",
+        message: "Invalid route params",
+        details: parsedParams.error.flatten(),
+      });
+    }
+  
+    const parsedBody = VoiceTurnBodySchema.safeParse(request.body);
+    if (!parsedBody.success) {
+      return reply.code(400).send({
+        code: "INVALID_BODY",
+        message: "Invalid request body",
+        details: parsedBody.error.flatten(),
+      });
+    }
+  
+    try {
+      const data = await container.useCases.voiceTurn.execute({
+        sessionId: parsedParams.data.sessionId,
+        questionId: parsedBody.data.questionId,
+        answerAudioBase64: parsedBody.data.answerAudioBase64,
+        locale: parsedBody.data.locale,
+        rubricDimensions: parsedBody.data.rubricDimensions,
+      });
+  
+      return reply.code(200).send({ code: "OK", data });
+    } catch (error) {
+      request.log.error({ error }, "voice turn failed");
       const mapped = mapErrorToHttp(error);
       return reply.code(mapped.statusCode).send({ code: mapped.code, message: mapped.message });
     }
