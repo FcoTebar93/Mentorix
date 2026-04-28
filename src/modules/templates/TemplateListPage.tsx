@@ -5,9 +5,11 @@ import type { InterviewTemplate } from "../../modules/templates/types";
 type Props = {
   onCreate: () => void;
   onEdit: (templateId: string) => void;
+  onLinks: (templateId: string) => void;
+  onResults: (templateId: string) => void;
 };
 
-export function TemplateListPage({ onCreate, onEdit }: Props) {
+export function TemplateListPage({ onCreate, onEdit, onLinks, onResults }: Props) {
   const [items, setItems] = useState<InterviewTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -68,6 +70,12 @@ export function TemplateListPage({ onCreate, onEdit }: Props) {
             <div style={{ display: "flex", gap: 8 }}>
               <button type="button" onClick={() => onEdit(t.id)}>
                 Editar
+              </button>
+              <button type="button" onClick={() => onLinks(t.id)}>
+                Links
+              </button>
+              <button type="button" onClick={() => onResults(t.id)}>
+                Resultados
               </button>
               <button type="button" onClick={() => onDelete(t.id)}>
                 Eliminar/Archivar

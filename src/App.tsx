@@ -18,7 +18,9 @@ type ViewState =
   | { step: "sessions" }
   | { step: "templates:list" }
   | { step: "templates:new" }
-  | { step: "templates:edit"; templateId: string };
+  | { step: "templates:edit"; templateId: string }
+  | { step: "templates:links"; templateId: string }
+  | { step: "templates:results"; templateId: string };
 
 export default function App() {
   const [state, setState] = useState<ViewState>({ step: "start" });
@@ -110,6 +112,8 @@ export default function App() {
       <TemplateListPage
         onCreate={() => setState({ step: "templates:new" })}
         onEdit={(templateId: string) => setState({ step: "templates:edit", templateId })}
+        onLinks={(templateId: string) => setState({ step: "templates:links", templateId })}
+        onResults={(templateId: string) => setState({ step: "templates:results", templateId })}
       />
     );
   } else if (state.step === "templates:new") {
@@ -123,7 +127,7 @@ export default function App() {
         }}
       />
     );
-  } else {
+  } else if (state.step === "templates:edit") {
     if (templateLoading) {
       content = <p>Cargando plantilla...</p>;
     } else if (templateError) {
@@ -143,6 +147,28 @@ export default function App() {
         />
       );
     }
+  } else if (state.step === "templates:links") {
+    content = (
+      <section style={{ display: "grid", gap: 12 }}>
+        <h2>Links de entrevista</h2>
+        <p>Template ID: {state.templateId}</p>
+        <p>Aqui conectaremos creacion/listado/revocacion de links.</p>
+        <button type="button" onClick={() => setState({ step: "templates:list" })}>
+          Volver a entrevistas
+        </button>
+      </section>
+    );
+  } else {
+    content = (
+      <section style={{ display: "grid", gap: 12 }}>
+        <h2>Resultados de entrevista</h2>
+        <p>Template ID: {state.templateId}</p>
+        <p>Aqui conectaremos metricas y sesiones filtradas por entrevista.</p>
+        <button type="button" onClick={() => setState({ step: "templates:list" })}>
+          Volver a entrevistas
+        </button>
+      </section>
+    );
   }
 
   return (
