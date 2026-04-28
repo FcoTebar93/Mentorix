@@ -1,3 +1,13 @@
+export type SessionStatusFilter =
+  | "all"
+  | "IDLE"
+  | "ASKING"
+  | "EVALUATING"
+  | "FEEDBACKING"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "FAILED";
+
 export type ApiOk<T> = {
   code: "OK";
   data: T;

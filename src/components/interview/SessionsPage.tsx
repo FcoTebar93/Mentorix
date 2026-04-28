@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { interviewApi } from "../../lib/api/interview";
-import type { SessionListItem } from "../../lib/interview/types";
+import type { SessionListItem, SessionStatusFilter } from "../../lib/interview/types";
 import { SessionList } from "./SessionList";
 
 type Props = {
@@ -13,6 +13,7 @@ export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [filter, setFilter] = useState<SessionStatusFilter>("all");
 
   useEffect(() => {
     let active = true;
@@ -22,7 +23,8 @@ export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
       setErrorMsg(null);
 
       try {
-        const res = await interviewApi.listSessions({ limit: 20 });
+        const status = filter === "all" ? undefined : filter;
+        const res = await interviewApi.listSessions({ status, limit: 20 });
         if (!active) return;
         setSessions(res.data ?? []);
       } catch (err) {
@@ -37,7 +39,7 @@ export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [filter]);
 
   return (
     <section style={{ display: "grid", gap: 12 }}>
@@ -46,6 +48,21 @@ export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
       </button>
 
       <h2>Sesiones</h2>
+
+      <label style={{ display: "grid", gap: 6, maxWidth: 240 }}>
+        Estado
+        <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as SessionStatusFilter)}
+        >
+            <option value="ASKING">En curso (ASKING)</option>
+            <option value="EVALUATING">Evaluando</option>
+            <option value="FEEDBACKING">Generando feedback</option>
+            <option value="COMPLETED">Completada</option>
+            <option value="FAILED">Fallida</option>
+            <option value="CANCELLED">Cancelada</option>
+        </select>
+      </label>
 
       {loading ? <p>Cargando sesiones...</p> : null}
       {errorMsg ? <p style={{ color: "crimson" }}>{errorMsg}</p> : null}
