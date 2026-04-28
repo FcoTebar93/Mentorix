@@ -22,6 +22,7 @@ import { ListSessionsCase } from "../application/cases/list-sessions.case.js";
 import { GetSessionReportCase } from "../application/cases/get-session.case.js";
 import { ListSessionReportsCase } from "../application/cases/list-reports.case.js";
 import { CompleteTurnCase } from "../application/cases/complete-turn.case.js";
+import { VoiceTurnCase } from "../application/cases/voice.case.js";
 
 type BuildTestContainerOptions = {
   llmService?: ILlmService;
@@ -110,6 +111,7 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
   const getSessionReport = new GetSessionReportCase(sessions);
   const listSessionReports = new ListSessionReportsCase(sessions);
   const completeTurn = new CompleteTurnCase(submitAnswer, evaluateAnswer, completeSession);
+  const voiceTurn = new VoiceTurnCase(sttService, ttsService, completeTurn);
 
   return {
     repositories: { templates, links, sessions },
@@ -124,6 +126,6 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
       sttFactory,
       ttsFactory,
     },
-    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn },
+    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn, voiceTurn },
   };
 }
