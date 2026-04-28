@@ -58,5 +58,14 @@ export const interviewApi = {
       headers: AUTH_HEADER,
     });
   },
+  getSession(sessionId: string) {
+    return apiRequest<ApiOk<InterviewSession>>(
+      `${API_BASE_URL}/v1/interview-sessions/${sessionId}`,
+      {
+        method: "GET",
+        headers: AUTH_HEADER,
+      }
+    );
+  },
 };
 
