@@ -9,6 +9,7 @@ import { AuthGuard } from "./modules/auth/AuthGuard";
 import { useAuth } from "./modules/auth/AuthContext";
 import { TemplateListPage } from "./modules/templates/TemplateListPage";
 import { TemplateForm } from "./modules/templates/TemplateForm";
+import { TemplateLinksPage } from "./modules/templates/TemplateLinksPage";
 import { templatesApi } from "./modules/templates/templates.api";
 import type { CreateTemplateInput, InterviewTemplate } from "./modules/templates/types";
 type ViewState =
@@ -148,16 +149,7 @@ export default function App() {
       );
     }
   } else if (state.step === "templates:links") {
-    content = (
-      <section style={{ display: "grid", gap: 12 }}>
-        <h2>Links de entrevista</h2>
-        <p>Template ID: {state.templateId}</p>
-        <p>Aqui conectaremos creacion/listado/revocacion de links.</p>
-        <button type="button" onClick={() => setState({ step: "templates:list" })}>
-          Volver a entrevistas
-        </button>
-      </section>
-    );
+    content = <TemplateLinksPage templateId={state.templateId} onBack={() => setState({ step: "templates:list" })} />;
   } else {
     content = (
       <section style={{ display: "grid", gap: 12 }}>

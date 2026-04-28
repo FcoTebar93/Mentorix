@@ -1,5 +1,7 @@
 import { apiRequest } from "../../lib/api/client";
 import type {
+  AccessLink,
+  CreateAccessLinkInput,
   CreateTemplateInput,
   InterviewTemplate,
   UpdateTemplateInput,
@@ -49,6 +51,14 @@ export const templatesApi = {
     return apiRequest<ApiOk<{ id: string }>>(`${API_BASE_URL}/v1/templates/${templateId}`, {
       method: "DELETE",
       headers: AUTH_HEADER,
+    });
+  },
+
+  createAccessLink(templateId: string, body: CreateAccessLinkInput) {
+    return apiRequest<ApiOk<AccessLink>>(`${API_BASE_URL}/v1/templates/${templateId}/access-links`, {
+      method: "POST",
+      headers: AUTH_HEADER,
+      body: JSON.stringify(body),
     });
   },
 };

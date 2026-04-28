@@ -40,3 +40,20 @@ export type CreateTemplateInput = Omit<
 >;
 
 export type UpdateTemplateInput = Partial<CreateTemplateInput>;
+
+export type AccessLink = {
+  id: string;
+  templateId: string;
+  ownerUserId: string;
+  status: "active" | "revoked" | "expired" | string;
+  maxUses?: number;
+  usedCount: number;
+  expiresAt?: string;
+  createdAt: string;
+  rawToken?: string;
+};
+
+export type CreateAccessLinkInput = {
+  maxUses?: number;
+  expiresAt?: string;
+};
