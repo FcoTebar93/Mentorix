@@ -12,7 +12,10 @@ type ViewState =
   | { step: "start" }
   | { step: "session"; sessionId: string; questionId?: string }
   | { step: "report"; sessionId: string }
-  | { step: "sessions" };
+  | { step: "sessions" }
+  | { step: "templates:list" }
+  | { step: "templates:new" }
+  | { step: "templates:edit"; templateId: string };
 
 export default function App() {
   const [state, setState] = useState<ViewState>({ step: "start" });
@@ -64,8 +67,14 @@ export default function App() {
         </section>
       );
     }
-  } else {
+  } else if (state.step === "report") {
     content = <ReportView sessionId={state.sessionId} />;
+  } else if (state.step === "templates:list") {
+    content = <section>Templates list</section>;
+  } else if (state.step === "templates:new") {
+    content = <section>New template</section>;
+  } else {
+    content = <section>Template edit: {state.templateId}</section>;
   }
 
   return (
