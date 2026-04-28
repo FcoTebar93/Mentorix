@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { buildTestContainer } from "../../infrastructure/test-container.js";
 import { buildServer } from "./server.js";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { authApi } from "../../modules/auth/auth.api.js";
 
 describe("HTTP auth routes", { timeout: 15000 }, () => {
   it("POST /v1/auth/login returns 200 with accessToken and user for valid credentials", async () => {
@@ -132,4 +133,83 @@ describe("HTTP auth routes", { timeout: 15000 }, () => {
       await app.close();
     }
   });
+
+describe("authApi", () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("POST /v1/auth/login devuelve token y usuario", async () => {
+    const fakeResponse = {
+      accessToken: "test-user:u1",
+      user: { id: "u1", email: "owner@mentorix.dev", role: "owner" },
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => fakeResponse,
+    } as Response);
+
+    const result = await authApi.login({
+      email: "owner@mentorix.dev",
+      password: "123456",
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
+
+    expect(String(url)).toContain("/v1/auth/login");
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBe(
+      JSON.stringify({ email: "owner@mentorix.dev", password: "123456" })
+    );
+    expect(result).toEqual(fakeResponse);
+  });
+
+  it("GET /v1/auth/me envía Authorization Bearer", async () => {
+    const fakeResponse = {
+      user: { id: "u1", email: "owner@mentorix.dev", role: "owner" },
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => fakeResponse,
+    } as Response);
+
+    const result = await authApi.me("test-user:u1");
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0];
+
+    expect(String(url)).toContain("/v1/auth/me");
+    expect(init?.method).toBe("GET");
+    expect((init?.headers as Record<string, string>)?.Authorization).toBe(
+      "Bearer test-user:u1"
+    );
+    expect(result).toEqual(fakeResponse);
+  });
+
+  it("propaga error HTTP en login inválido", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({
+        code: "UNAUTHORIZED",
+        message: "Invalid email or password",
+      }),
+    } as Response);
+
+    await expect(
+      authApi.login({ email: "owner@mentorix.dev", password: "wrong" })
+    ).rejects.toThrow("Invalid email or password");
+  });
+});
 });
