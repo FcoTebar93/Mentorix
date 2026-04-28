@@ -5,6 +5,7 @@ import { registerAccessLinkRoutes } from "./access-link.route.js";
 import { registerHealthRoutes } from "./health.route.js";
 import { registerVoiceRoutes } from "./voice.route.js";
 import { DbHealthService } from "../../../infrastructure/health/health.service.js";
+import { registerAuthRoutes } from "./auth.route.js";
 
 export const registerRoutes: RegisterRoutes = (app, container) => {
   registerHealthRoutes(app, new DbHealthService());
@@ -12,4 +13,5 @@ export const registerRoutes: RegisterRoutes = (app, container) => {
   registerTemplateRoutes(app, container);
   registerAccessLinkRoutes(app, container);
   registerVoiceRoutes(app, container);
+  registerAuthRoutes(app, container);
 };

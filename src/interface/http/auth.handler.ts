@@ -4,7 +4,13 @@ export type AuthenticatedUser = {
   id: string;
 };
 
-function parseUserIdFromAuthHeader(authHeader?: string): string | null {
+declare module "fastify" {
+  interface FastifyRequest {
+    user?: AuthenticatedUser;
+  }
+}
+
+export function parseUserIdFromAuthHeader(authHeader?: string): string | null {
   if (!authHeader) return null;
 
   const [scheme, token] = authHeader.split(" ");
