@@ -56,11 +56,17 @@ export type CompleteTurnResult = {
 };
 
 export type SessionReport = {
-  sessionId?: string;
-  status?: string;
-  score?: number;
-  feedbackItems?: Array<{ title?: string; text?: string }>;
-  [key: string]: unknown;
+  sessionId: string;
+  status: string;
+  overallScore: number | null;
+  evaluatedAnswers: number;
+  strengths: string[];
+  improvements: string[];
+  startedAt?: string;
+  endedAt?: string;
+  dimensionAverages: Record<string, number>;
+  confidenceAverage: number | null;
+  recommendation: string;
 };
 
 export type SessionListItem = {
