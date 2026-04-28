@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import type { InterviewAccessLinkRepository } from "../../../application/ports/repositories.js";
 import type { InterviewAccessLink } from "../../../domain/interview/link/types.js";
 import { getDb } from "../../db/client.js";
@@ -52,6 +52,16 @@ export class PgInterviewAccessLinkRepository implements InterviewAccessLinkRepos
 
     const row = rows[0];
     return row ? this.toDomain(row) : null;
+  }
+
+  async listByTemplateId(templateId: string): Promise<InterviewAccessLink[]> {
+    const rows = await getDb()
+      .select()
+      .from(interviewAccessLinksTable)
+      .where(eq(interviewAccessLinksTable.templateId, templateId))
+      .orderBy(desc(interviewAccessLinksTable.createdAt));
+
+    return rows.map((row) => this.toDomain(row));
   }
 
   private toDomain(row: typeof interviewAccessLinksTable.$inferSelect): InterviewAccessLink {

@@ -18,6 +18,8 @@ import {
 import { Sha256TokenService, SystemClock, SystemIdGenerator } from "./system/system.service.js";
 import { CreateTemplateCase } from "../application/cases/create-template.case.js";
 import { CreateAccessLinkCase } from "../application/cases/create-access-link.case.js";
+import { ListAccessLinksCase } from "../application/cases/list-access-links.case.js";
+import { RevokeAccessLinkCase } from "../application/cases/revoke-access-link.case.js";
 import { ListSessionsCase } from "../application/cases/list-sessions.case.js";
 import { GetSessionReportCase } from "../application/cases/get-session.case.js";
 import { ListSessionReportsCase } from "../application/cases/list-reports.case.js";
@@ -93,6 +95,8 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
 
   const createTemplate = new CreateTemplateCase(templates, ids, clock);
   const createAccessLink = new CreateAccessLinkCase(links, templates, tokenService, ids, clock);
+  const listAccessLinks = new ListAccessLinksCase(links, templates);
+  const revokeAccessLink = new RevokeAccessLinkCase(links, templates, clock);
 
   const startSession = new StartSessionFromLinkCase(
     links,
@@ -126,6 +130,6 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
       sttFactory,
       ttsFactory,
     },
-    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn, voiceTurn },
+    useCases: { createTemplate, createAccessLink, listAccessLinks, revokeAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn, voiceTurn },
   };
 }

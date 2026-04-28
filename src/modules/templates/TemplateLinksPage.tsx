@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { templatesApi } from "./templates.api";
 import type { AccessLink } from "./types";
 
@@ -21,10 +21,28 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
   const [maxUses, setMaxUses] = useState<number>(1);
   const [expiresAt, setExpiresAt] = useState<string>("");
   const [creating, setCreating] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [loadingLinks, setLoadingLinks] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [createdLinks, setCreatedLinks] = useState<AccessLink[]>([]);
+  const [links, setLinks] = useState<AccessLink[]>([]);
 
   const canCreate = useMemo(() => maxUses > 0 && !creating, [maxUses, creating]);
+
+  async function loadLinks() {
+    setLoadingLinks(true);
+    try {
+      const res = await templatesApi.listAccessLinks(templateId);
+      setLinks(res.data ?? []);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "No se pudieron cargar los links");
+    } finally {
+      setLoadingLinks(false);
+    }
+  }
+
+  useEffect(() => {
+    loadLinks();
+  }, [templateId]);
 
   async function handleCreate() {
     if (!canCreate) return;
@@ -35,12 +53,25 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
         maxUses,
         expiresAt: expiresAt.trim() || undefined,
       };
-      const res = await templatesApi.createAccessLink(templateId, payload);
-      setCreatedLinks((prev) => [res.data, ...prev]);
+      await templatesApi.createAccessLink(templateId, payload);
+      await loadLinks();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "No se pudo crear el link");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleRevoke(linkId: string) {
+    setErrorMsg(null);
+    setRevokingId(linkId);
+    try {
+      await templatesApi.revokeAccessLink(linkId);
+      await loadLinks();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "No se pudo revocar el link");
+    } finally {
+      setRevokingId(null);
     }
   }
 
@@ -76,11 +107,12 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
       </section>
 
       <section style={{ display: "grid", gap: 8 }}>
-        <h3 style={{ margin: 0 }}>Links creados en esta sesión</h3>
-        {!createdLinks.length ? (
-          <p>Aún no has creado links en esta vista.</p>
+        <h3 style={{ margin: 0 }}>Links del template</h3>
+        {loadingLinks ? <p>Cargando links...</p> : null}
+        {!loadingLinks && !links.length ? (
+          <p>No hay links para este template.</p>
         ) : (
-          createdLinks.map((link) => (
+          links.map((link) => (
             <article
               key={link.id}
               style={{
@@ -96,9 +128,19 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
               <span>Usos: {link.usedCount}/{link.maxUses ?? "∞"}</span>
               <span>Expira: {formatDate(link.expiresAt)}</span>
               <span>Creado: {formatDate(link.createdAt)}</span>
+              <span>Revocado: {formatDate(link.revokedAt)}</span>
               {link.rawToken ? (
                 <code style={{ overflowWrap: "anywhere" }}>{link.rawToken}</code>
               ) : null}
+              <div>
+                <button
+                  type="button"
+                  disabled={link.status !== "active" || revokingId === link.id}
+                  onClick={() => handleRevoke(link.id)}
+                >
+                  {revokingId === link.id ? "Revocando..." : "Revocar"}
+                </button>
+              </div>
             </article>
           ))
         )}

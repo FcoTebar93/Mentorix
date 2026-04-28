@@ -6,6 +6,8 @@ import { EnvLlmServiceFactory } from "./llm/llm.factory.js";
 import { Sha256TokenService, SystemClock, SystemIdGenerator } from "./system/system.service.js";
 import { CreateTemplateCase } from "../application/cases/create-template.case.js";
 import { CreateAccessLinkCase } from "../application/cases/create-access-link.case.js";
+import { ListAccessLinksCase } from "../application/cases/list-access-links.case.js";
+import { RevokeAccessLinkCase } from "../application/cases/revoke-access-link.case.js";
 import { PgInterviewTemplateRepository } from "./repositories/postgres/template.repository.js";
 import { PgInterviewAccessLinkRepository } from "./repositories/postgres/access-link.repository.js";
 import { PgInterviewSessionRepository } from "./repositories/postgres/session.repository.js";
@@ -32,6 +34,8 @@ export function buildContainer() {
 
   const createTemplate = new CreateTemplateCase(templates, ids, clock);
   const createAccessLink = new CreateAccessLinkCase(links, templates, tokenService, ids, clock);
+  const listAccessLinks = new ListAccessLinksCase(links, templates);
+  const revokeAccessLink = new RevokeAccessLinkCase(links, templates, clock);
 
   const startSession = new StartSessionFromLinkCase(
     links,
@@ -55,6 +59,6 @@ export function buildContainer() {
   return {
     repositories: { templates, links, sessions },
     services: { clock, ids, tokenService, llmFactory, sttFactory, ttsFactory, sttService, ttsService },
-    useCases: { createTemplate, createAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn, voiceTurn },
+    useCases: { createTemplate, createAccessLink, listAccessLinks, revokeAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn, voiceTurn },
   };
 }

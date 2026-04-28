@@ -37,6 +37,12 @@ export class InMemoryInterviewAccessLinkRepository implements InterviewAccessLin
         const value = this.byTokenHash.get(tokenHash);
       return value ? structuredClone(value) : null;
     }
+
+    async listByTemplateId(templateId: UUID): Promise<InterviewAccessLink[]> {
+      return Array.from(this.store.values())
+        .filter((l) => l.templateId === templateId)
+        .map((l) => structuredClone(l));
+    }
 }
 
 export class InMemoryInterviewSessionRepository implements InterviewSessionRepository {

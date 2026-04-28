@@ -61,4 +61,18 @@ export const templatesApi = {
       body: JSON.stringify(body),
     });
   },
+
+  listAccessLinks(templateId: string) {
+    return apiRequest<ApiOk<AccessLink[]>>(`${API_BASE_URL}/v1/templates/${templateId}/access-links`, {
+      method: "GET",
+      headers: AUTH_HEADER,
+    });
+  },
+
+  revokeAccessLink(linkId: string) {
+    return apiRequest<ApiOk<AccessLink>>(`${API_BASE_URL}/v1/access-links/${linkId}/revoke`, {
+      method: "POST",
+      headers: AUTH_HEADER,
+    });
+  },
 };

@@ -11,6 +11,7 @@ export interface InterviewAccessLinkRepository {
   save(link: InterviewAccessLink): Promise<void>;
   getById(id: UUID): Promise<InterviewAccessLink | null>;
   getByTokenHash(tokenHash: string): Promise<InterviewAccessLink | null>;
+  listByTemplateId(templateId: UUID): Promise<InterviewAccessLink[]>;
 }
 
 export interface InterviewSessionRepository {

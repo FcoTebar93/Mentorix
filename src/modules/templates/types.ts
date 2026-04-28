@@ -50,6 +50,7 @@ export type AccessLink = {
   usedCount: number;
   expiresAt?: string;
   createdAt: string;
+  revokedAt?: string;
   rawToken?: string;
 };
 
