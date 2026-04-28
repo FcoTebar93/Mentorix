@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { StartInterviewForm } from "./components/StartInterviewForm";
 import { TurnComposer } from "./components/TurnComposer";
@@ -7,7 +7,10 @@ import { SessionsPage } from "./components/interview/SessionsPage";
 import { SessionLoader } from "./components/interview/SessionLoader";
 import { AuthGuard } from "./modules/auth/AuthGuard";
 import { useAuth } from "./modules/auth/AuthContext";
-
+import { TemplateListPage } from "./modules/templates/TemplateListPage";
+import { TemplateForm } from "./modules/templates/TemplateForm";
+import { templatesApi } from "./modules/templates/templates.api";
+import type { CreateTemplateInput, InterviewTemplate } from "./modules/templates/types";
 type ViewState =
   | { step: "start" }
   | { step: "session"; sessionId: string; questionId?: string }
@@ -21,6 +24,36 @@ export default function App() {
   const [state, setState] = useState<ViewState>({ step: "start" });
   const { logout, user } = useAuth();
 
+  const [editingTemplate, setEditingTemplate] = useState<InterviewTemplate | null>(null);
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (state.step !== "templates:edit") return;
+    const templateId = state.templateId;
+
+    let active = true;
+    async function loadTemplate() {
+      setTemplateLoading(true);
+      setTemplateError(null);
+      try {
+        const res = await templatesApi.getById(templateId);
+        if (!active) return;
+        setEditingTemplate(res.data);
+      } catch (err) {
+        if (!active) return;
+        setTemplateError(err instanceof Error ? err.message : "No se pudo cargar la plantilla");
+      } finally {
+        if (active) setTemplateLoading(false);
+      }
+    }
+
+    loadTemplate();
+    return () => {
+      active = false;
+    };
+  }, [state]);
+
   let content: ReactElement;
 
   if (state.step === "start") {
@@ -33,6 +66,9 @@ export default function App() {
         />
         <button type="button" onClick={() => setState({ step: "sessions" })}>
           Ver sesiones
+        </button>
+        <button type="button" onClick={() => setState({ step: "templates:list" })}>
+          Entrevistas
         </button>
       </section>
     );
@@ -70,11 +106,43 @@ export default function App() {
   } else if (state.step === "report") {
     content = <ReportView sessionId={state.sessionId} />;
   } else if (state.step === "templates:list") {
-    content = <section>Templates list</section>;
+    content = (
+      <TemplateListPage
+        onCreate={() => setState({ step: "templates:new" })}
+        onEdit={(templateId: string) => setState({ step: "templates:edit", templateId })}
+      />
+    );
   } else if (state.step === "templates:new") {
-    content = <section>New template</section>;
+    content = (
+      <TemplateForm
+        submitLabel="Crear entrevista"
+        onCancel={() => setState({ step: "templates:list" })}
+        onSubmit={async (payload: CreateTemplateInput) => {
+          await templatesApi.create(payload);
+          setState({ step: "templates:list" });
+        }}
+      />
+    );
   } else {
-    content = <section>Template edit: {state.templateId}</section>;
+    if (templateLoading) {
+      content = <p>Cargando plantilla...</p>;
+    } else if (templateError) {
+      content = <p style={{ color: "crimson" }}>{templateError}</p>;
+    } else if (!editingTemplate) {
+      content = <p>No se encontró la plantilla.</p>;
+    } else {
+      content = (
+        <TemplateForm
+          initial={editingTemplate}
+          submitLabel="Guardar cambios"
+          onCancel={() => setState({ step: "templates:list" })}
+          onSubmit={async (payload: CreateTemplateInput) => {
+            await templatesApi.update(editingTemplate.id, payload);
+            setState({ step: "templates:list" });
+          }}
+        />
+      );
+    }
   }
 
   return (
