@@ -66,10 +66,6 @@ export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
 
   return (
     <section className="stack-md">
-      <button type="button" onClick={onBack}>
-        Volver
-      </button>
-
       <h2>Sesiones</h2>
 
       <label className="form-label-compact">

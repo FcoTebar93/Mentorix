@@ -114,7 +114,21 @@ export default function App() {
 
     return (
       <section className="candidate-shell">
-        <section className="candidate-card">{content}</section>
+        <section className="candidate-layout">
+          <aside className="candidate-sidebar">
+            <div className="brand-block">
+              <strong>Mentorix AI</strong>
+              <span>Infra Engineer Interview</span>
+            </div>
+            <nav className="candidate-nav">
+              <button type="button" className="is-active">Interview</button>
+              <button type="button">History</button>
+              <button type="button">Settings</button>
+            </nav>
+            <p className="sidebar-muted">Preparado para entrevistas técnicas guiadas por IA.</p>
+          </aside>
+          <section className="candidate-card">{content}</section>
+        </section>
       </section>
     );
   }

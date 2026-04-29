@@ -49,12 +49,12 @@ export function StartInterviewForm({ onStarted, presetToken, showTokenField = tr
   }
 
   return (
-    <form onSubmit={onSubmit} className="form-stack form-narrow">
-      <h2>Iniciar entrevista</h2>
+    <form onSubmit={onSubmit} className="form-stack form-narrow start-form">
+      <h2 className="start-form-title">Iniciar entrevista</h2>
 
       {showTokenField ? (
-        <label>
-          Token
+        <label className="start-form-field">
+          <span>Token</span>
           <input
             value={rawToken}
             onChange={(e) => setRawToken(e.target.value)}
@@ -63,8 +63,8 @@ export function StartInterviewForm({ onStarted, presetToken, showTokenField = tr
         </label>
       ) : null}
 
-      <label>
-        Nombre
+      <label className="start-form-field">
+        <span>Nombre</span>
         <input
           value={guestAlias}
           onChange={(e) => setGuestAlias(e.target.value)}

@@ -30,6 +30,7 @@ export function TurnComposer({
     () => !!questionId && !!answerAudioBase64 && !loading && !isRecording,
     [questionId, answerAudioBase64, loading, isRecording]
   );
+  const statusText = loading ? "Evaluando..." : isRecording ? "Pensando..." : "Listo para responder";
 
   async function startRecording() {
     setErrorMsg(null);
@@ -109,15 +110,42 @@ export function TurnComposer({
   }
 
   return (
-    <section className="form-stack form-wide">
-      <h2>Entrevista en curso</h2>
+    <section className="interview-panel">
+      <header className="interview-panel-header">
+        <h2 className="title-reset">Entrevista en curso</h2>
+        <span className={`status-pill ${loading || isRecording ? "is-pulsing" : ""}`}>{statusText}</span>
+      </header>
 
-      <div>
-        <strong>Pregunta:</strong>
-        <p>{questionText}</p>
-      </div>
+      <section className="chat-container">
+        <article className="message-row message-ai">
+          <div className="message-bubble level-2">
+            <p className="message-meta">AI Interviewer</p>
+            <p className="text-reset">{questionText}</p>
+          </div>
+        </article>
 
-      <section className="form-stack">
+        {answerAudioBase64 ? (
+          <article className="message-row message-user">
+            <div className="message-bubble level-2">
+              <p className="message-meta">Tu respuesta</p>
+              <p className="text-reset">Audio capturado y listo para enviar.</p>
+            </div>
+          </article>
+        ) : null}
+
+        {transcript ? (
+          <article className="message-row message-user">
+            <div className="message-bubble level-2">
+              <p className="message-meta">Transcripción</p>
+              <pre className="code-block">{transcript}</pre>
+            </div>
+          </article>
+        ) : null}
+
+        {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
+      </section>
+
+      <section className="composer-sticky">
         <div className="row-actions">
           {!isRecording ? (
             <button type="button" onClick={startRecording} disabled={loading}>
@@ -132,11 +160,7 @@ export function TurnComposer({
             {loading ? "Enviando audio..." : "Enviar respuesta por voz"}
           </button>
         </div>
-        {answerAudioBase64 ? <p>Audio capturado y listo para enviar.</p> : null}
-        {transcript ? <p><strong>Transcripción:</strong> {transcript}</p> : null}
       </section>
-
-      {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
     </section>
   );
 }
