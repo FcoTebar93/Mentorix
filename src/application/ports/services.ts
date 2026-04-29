@@ -51,6 +51,7 @@ export interface GenerateQuestionInput {
     level: "junior" | "mid" | "senior";
     language: string;
     previousQuestions: string[];
+    prompt?: string;
 }
 
 export interface ILlmService {

@@ -9,8 +9,9 @@ import type {
 export class MockProvider implements ILlmService {
   async generateQuestion(input: GenerateQuestionInput): Promise<{ text: string; usage?: LlmUsage }> {
     const index = input.previousQuestions.length + 1;
+    const promptHint = input.prompt ? ` | prompt: ${input.prompt.slice(0, 40)}` : "";
     return {
-      text: `[MOCK] Question ${index} for ${input.role} (${input.level}, ${input.language})`,
+      text: `[MOCK] Question ${index} for ${input.role} (${input.level}, ${input.language})${promptHint}`,
       usage: {
         inputTokens: 0,
         outputTokens: 0,

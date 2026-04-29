@@ -52,6 +52,7 @@ export class StartSessionFromLinkCase {
           level: template.level,
           language: template.language,
           previousQuestions: [],
+          prompt: template.prompt,
         });
       } catch {
         throw new Error("LLM_QUESTION_GENERATION_FAILED");

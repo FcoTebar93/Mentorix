@@ -49,6 +49,7 @@ export class CompleteSessionCase {
             level: template.level,
             language: template.language,
             previousQuestions: session.state.questions.map((q) => q.text),
+            prompt: template.prompt,
           });
         } catch {
           throw new Error("LLM_QUESTION_GENERATION_FAILED");

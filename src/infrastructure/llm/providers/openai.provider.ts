@@ -23,6 +23,7 @@ export class OpenAiProvider implements ILlmService {
   
       const prompt = [
         "You generate interview questions.",
+        input.prompt ? `Interview Prompt: ${input.prompt}` : "",
         `Role: ${input.role}`,
         `Level: ${input.level}`,
         `Language: ${input.language}`,

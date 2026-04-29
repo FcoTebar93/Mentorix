@@ -21,7 +21,9 @@ export class GeminiProvider implements ILlmService {
     async generateQuestion(input: GenerateQuestionInput): Promise<{ text: string; usage?: LlmUsage }> {
       const prompt = [
         "Generate one interview question.",
+        input.prompt ? `Interview Prompt: ${input.prompt}` : "",
         `Role=${input.role}, Level=${input.level}, Language=${input.language}`,
+        `Previous=${JSON.stringify(input.previousQuestions)}`,
         'Return ONLY JSON: {"text":"..."}',
       ].join("\n");
   
