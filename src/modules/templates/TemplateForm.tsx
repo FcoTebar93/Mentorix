@@ -25,7 +25,9 @@ export function TemplateForm({
   const [language, setLanguage] = useState(initial?.language ?? "es");
   const [totalQuestions, setTotalQuestions] = useState(initial?.totalQuestions ?? 5);
   const [prompt, setPrompt] = useState(initial?.prompt ?? "");
-  const [questionsText, setQuestionsText] = useState((initial?.questions ?? []).join("\n"));
+  const [questions, setQuestions] = useState<string[]>(
+    initial?.questions?.length ? initial.questions : [""]
+  );
 
   const [rubricKey, setRubricKey] = useState(initial?.rubric.dimensions[0]?.key ?? "architecture");
   const [rubricWeight, setRubricWeight] = useState(initial?.rubric.dimensions[0]?.weight ?? 1);
@@ -36,11 +38,23 @@ export function TemplateForm({
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const normalizedQuestions = useMemo(
+    () => questions.map((item) => item.trim()),
+    [questions]
+  );
+  const questionDuplicates = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const question of normalizedQuestions) {
+      if (!question) continue;
+      const key = question.toLowerCase();
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key));
+  }, [normalizedQuestions]);
+
   const canSubmit = useMemo(() => {
-    const parsedQuestions = questionsText
-      .split("\n")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const parsedQuestions = normalizedQuestions.filter(Boolean);
+    const hasDuplicates = parsedQuestions.some((item) => questionDuplicates.has(item.toLowerCase()));
 
     return (
       title.trim().length > 0 &&
@@ -48,7 +62,9 @@ export function TemplateForm({
       language.trim().length >= 2 &&
       rubricKey.trim().length > 0 &&
       rubricDescription.trim().length > 0 &&
-      (templateType === "dynamic" ? prompt.trim().length > 0 && totalQuestions > 0 : parsedQuestions.length > 0) &&
+      (templateType === "dynamic"
+        ? prompt.trim().length > 0 && totalQuestions > 0
+        : parsedQuestions.length > 0 && !hasDuplicates) &&
       rubricWeight > 0 &&
       passThreshold >= 0 &&
       passThreshold <= 100 &&
@@ -60,7 +76,8 @@ export function TemplateForm({
     language,
     templateType,
     prompt,
-    questionsText,
+    normalizedQuestions,
+    questionDuplicates,
     rubricKey,
     rubricDescription,
     totalQuestions,
@@ -75,10 +92,7 @@ export function TemplateForm({
 
     setErrorMsg(null);
 
-    const parsedQuestions = questionsText
-      .split("\n")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const parsedQuestions = normalizedQuestions.filter(Boolean);
 
     const payload: CreateTemplateInput = {
       templateType,
@@ -106,6 +120,33 @@ export function TemplateForm({
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "No se pudo guardar la plantilla");
     }
+  }
+
+  function updateQuestion(index: number, value: string) {
+    setQuestions((prev) => prev.map((item, idx) => (idx === index ? value : item)));
+  }
+
+  function addQuestion() {
+    setQuestions((prev) => [...prev, ""]);
+  }
+
+  function removeQuestion(index: number) {
+    setQuestions((prev) => {
+      const next = prev.filter((_, idx) => idx !== index);
+      return next.length ? next : [""];
+    });
+  }
+
+  function moveQuestion(index: number, direction: -1 | 1) {
+    setQuestions((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const copy = [...prev];
+      const tmp = copy[index];
+      copy[index] = copy[target];
+      copy[target] = tmp;
+      return copy;
+    });
   }
 
   return (
@@ -151,12 +192,46 @@ export function TemplateForm({
           />
         </>
       ) : (
-        <textarea
-          rows={8}
-          placeholder={"Una pregunta por linea"}
-          value={questionsText}
-          onChange={(e) => setQuestionsText(e.target.value)}
-        />
+        <section className="question-editor">
+          <div className="question-editor-header">
+            <strong>Preguntas fijas</strong>
+            <span>{normalizedQuestions.filter(Boolean).length} cargadas</span>
+          </div>
+          {questions.map((question, index) => {
+            const normalized = question.trim().toLowerCase();
+            const hasDuplicate = !!normalized && questionDuplicates.has(normalized);
+            return (
+              <div key={`question-${index}`} className="question-row">
+                <input
+                  value={question}
+                  onChange={(e) => updateQuestion(index, e.target.value)}
+                  placeholder={`Pregunta ${index + 1}`}
+                />
+                <div className="question-row-actions">
+                  <button type="button" className="btn-ghost" onClick={() => moveQuestion(index, -1)} disabled={index === 0}>
+                    Subir
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => moveQuestion(index, 1)}
+                    disabled={index === questions.length - 1}
+                  >
+                    Bajar
+                  </button>
+                  <button type="button" className="btn-ghost" onClick={() => removeQuestion(index)}>
+                    Eliminar
+                  </button>
+                </div>
+                {!question.trim() ? <p className="error-text">La pregunta no puede estar vacia.</p> : null}
+                {hasDuplicate ? <p className="error-text">Pregunta duplicada.</p> : null}
+              </div>
+            );
+          })}
+          <button type="button" onClick={addQuestion}>
+            Agregar pregunta
+          </button>
+        </section>
       )}
 
       <h3 className="section-title">Rúbrica</h3>
