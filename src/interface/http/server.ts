@@ -10,6 +10,7 @@ export function buildServer(containerArg?: AppContainer) {
   app.register(cors, {
     origin: true,
     credentials: true,
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
 
   registerRoutes(app, container);

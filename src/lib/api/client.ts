@@ -13,10 +13,11 @@ export class HttpError extends Error {
 }
 
 export async function apiRequest<T>(url: string, init?: RequestInit): Promise<T> {
+  const hasBody = init?.body !== undefined && init?.body !== null;
   const response = await fetch(url, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
       ...(init?.headers ?? {}),
     },
   });
