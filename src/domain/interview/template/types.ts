@@ -3,6 +3,7 @@ export type ISODateString = string;
 
 export type LlmProvider =
   | "openai"
+  | "groq"
   | "anthropic"
   | "google"
   | "azure"

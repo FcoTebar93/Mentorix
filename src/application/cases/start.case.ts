@@ -54,7 +54,10 @@ export class StartSessionFromLinkCase {
           previousQuestions: [],
           prompt: template.prompt,
         });
-      } catch {
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith("LLM_")) {
+          throw error;
+        }
         throw new Error("LLM_QUESTION_GENERATION_FAILED");
       }
       firstQuestionText = generated.text;

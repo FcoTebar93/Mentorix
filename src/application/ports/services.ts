@@ -2,6 +2,7 @@ import type { LlmInterviewConfig, VoiceInterviewConfig } from "../../domain/inte
 
 export type LlmProvider =
   | "openai"
+  | "groq"
   | "anthropic"
   | "google"
   | "azure"
