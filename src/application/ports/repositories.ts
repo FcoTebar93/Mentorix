@@ -5,6 +5,9 @@ import type { InterviewTemplate } from "../../domain/interview/template/types.js
 export interface InterviewTemplateRepository {
   save(template: InterviewTemplate): Promise<void>;
   getById(id: UUID): Promise<InterviewTemplate | null>;
+  getByIdForOwner(id: UUID, ownerUserId: UUID): Promise<InterviewTemplate | null>;
+  listByOwner(ownerUserId: UUID): Promise<InterviewTemplate[]>;
+  removeByIdForOwner(id: UUID, ownerUserId: UUID): Promise<boolean>;
 }
 
 export interface InterviewAccessLinkRepository {

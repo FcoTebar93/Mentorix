@@ -17,6 +17,7 @@ import { ListSessionReportsCase } from "../application/cases/list-reports.case.j
 import { CompleteTurnCase } from "../application/cases/complete-turn.case.js";
 import { EnvSttServiceFactory, EnvTtsServiceFactory } from "./voice/voice.factory.js";
 import { VoiceTurnCase } from "../application/cases/voice.case.js";
+import type { ISttService, ITtsService } from "../application/ports/services.js";
 
 export function buildContainer() {
   const templates = new PgInterviewTemplateRepository();
@@ -29,8 +30,31 @@ export function buildContainer() {
   const llmFactory = new EnvLlmServiceFactory(process.env);
   const sttFactory = new EnvSttServiceFactory(process.env);
   const ttsFactory = new EnvTtsServiceFactory(process.env);
-  const sttService = sttFactory.forVoiceConfig();
-  const ttsService = ttsFactory.forVoiceConfig();
+
+  const unavailableSttService: ISttService = {
+    async transcribe() {
+      throw new Error("VOICE_FEATURE_NOT_AVAILABLE");
+    },
+  };
+  const unavailableTtsService: ITtsService = {
+    async synthesize() {
+      throw new Error("VOICE_FEATURE_NOT_AVAILABLE");
+    },
+  };
+
+  const { sttService, ttsService } = (() => {
+    try {
+      return {
+        sttService: sttFactory.forVoiceConfig(),
+        ttsService: ttsFactory.forVoiceConfig(),
+      };
+    } catch {
+      return {
+        sttService: unavailableSttService,
+        ttsService: unavailableTtsService,
+      };
+    }
+  })();
 
   const createTemplate = new CreateTemplateCase(templates, ids, clock);
   const createAccessLink = new CreateAccessLinkCase(links, templates, tokenService, ids, clock);

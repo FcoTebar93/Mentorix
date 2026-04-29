@@ -18,6 +18,27 @@ export class InMemoryInterviewTemplateRepository implements InterviewTemplateRep
       const value = this.store.get(id);
       return value ? structuredClone(value) : null;
     }
+
+    async getByIdForOwner(id: UUID, ownerUserId: UUID): Promise<InterviewTemplate | null> {
+      const value = this.store.get(id);
+      if (!value) return null;
+      if (value.ownerUserId !== ownerUserId) return null;
+      return structuredClone(value);
+    }
+
+    async listByOwner(ownerUserId: UUID): Promise<InterviewTemplate[]> {
+      return Array.from(this.store.values())
+        .filter((t) => t.ownerUserId === ownerUserId)
+        .map((t) => structuredClone(t));
+    }
+
+    async removeByIdForOwner(id: UUID, ownerUserId: UUID): Promise<boolean> {
+      const value = this.store.get(id);
+      if (!value) return false;
+      if (value.ownerUserId !== ownerUserId) return false;
+      this.store.delete(id);
+      return true;
+    }
 }
   
 export class InMemoryInterviewAccessLinkRepository implements InterviewAccessLinkRepository {
