@@ -6,6 +6,8 @@ import type {
   InterviewSession,
   SessionReport,
   StartFromLinkBody,
+  VoiceTurnBody,
+  VoiceTurnResult,
 } from "../interview/types.js";
 import type { SessionListItem, ListSessionsQuery } from "../interview/types.js";
 
@@ -31,6 +33,17 @@ export const interviewApi = {
   completeTurn(sessionId: string, body: CompleteTurnBody) {
     return apiRequest<ApiOk<CompleteTurnResult>>(
       `${API_BASE_URL}/v1/interview-sessions/${sessionId}/turn`,
+      {
+        method: "POST",
+        headers: AUTH_HEADER,
+        body: JSON.stringify(body),
+      }
+    );
+  },
+
+  voiceTurn(sessionId: string, body: VoiceTurnBody) {
+    return apiRequest<ApiOk<VoiceTurnResult>>(
+      `${API_BASE_URL}/v1/interview-sessions/${sessionId}/voice-turn`,
       {
         method: "POST",
         headers: AUTH_HEADER,
@@ -66,6 +79,15 @@ export const interviewApi = {
       `${API_BASE_URL}/v1/interview-sessions/${sessionId}`,
       {
         method: "GET",
+        headers: AUTH_HEADER,
+      }
+    );
+  },
+  removeSession(sessionId: string) {
+    return apiRequest<ApiOk<{ id: string }>>(
+      `${API_BASE_URL}/v1/interview-sessions/${sessionId}`,
+      {
+        method: "DELETE",
         headers: AUTH_HEADER,
       }
     );

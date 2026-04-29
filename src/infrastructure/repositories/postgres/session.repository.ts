@@ -140,4 +140,12 @@ export class PgInterviewSessionRepository implements InterviewSessionRepository 
       version: row.version,
     };
   }
+
+  async removeByIdForOwner(id: string, ownerUserId: string): Promise<boolean> {
+    const result = await getDb()
+      .delete(interviewSessionsTable)
+      .where(and(eq(interviewSessionsTable.id, id), eq(interviewSessionsTable.ownerUserId, ownerUserId)));
+
+    return (result.rowCount ?? 0) > 0;
+  }
 }

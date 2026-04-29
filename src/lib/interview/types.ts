@@ -37,6 +37,13 @@ export type CompleteTurnBody = {
   rubricDimensions: RubricDimension[];
 };
 
+export type VoiceTurnBody = {
+  questionId: string;
+  answerAudioBase64: string;
+  locale: string;
+  rubricDimensions: RubricDimension[];
+};
+
 export type InterviewQuestion = {
   id: string;
   text: string;
@@ -53,6 +60,12 @@ export type InterviewSession = {
 export type CompleteTurnResult = {
   isCompleted: boolean;
   nextQuestion: InterviewQuestion | null;
+};
+
+export type VoiceTurnResult = {
+  transcript: string;
+  result: CompleteTurnResult;
+  nextQuestionAudioBase64: string | null;
 };
 
 export type SessionReport = {

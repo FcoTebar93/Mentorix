@@ -98,4 +98,12 @@ export class InMemoryInterviewSessionRepository implements InterviewSessionRepos
       if (value.ownerUserId !== ownerUserId) return null;
       return structuredClone(value);
     }
+
+    async removeByIdForOwner(id: UUID, ownerUserId: UUID): Promise<boolean> {
+      const value = this.store.get(id);
+      if (!value) return false;
+      if (value.ownerUserId !== ownerUserId) return false;
+      this.store.delete(id);
+      return true;
+    }
 }

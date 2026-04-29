@@ -69,6 +69,40 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     }
   });
 
+  app.delete("/v1/interview-sessions/:sessionId", { preHandler: requireAuth }, async (request, reply) => {
+    const parsedParams = SessionParamsSchema.safeParse(request.params);
+    if (!parsedParams.success) {
+      return reply.code(400).send({
+        code: "INVALID_PARAMS",
+        message: "Invalid route params",
+        details: parsedParams.error.flatten(),
+      });
+    }
+
+    try {
+      const removed = await container.repositories.sessions.removeByIdForOwner(
+        parsedParams.data.sessionId,
+        request.user!.id
+      );
+
+      if (!removed) {
+        return reply.code(404).send({
+          code: "SESSION_NOT_FOUND",
+          message: "Session not found",
+        });
+      }
+
+      return reply.code(200).send({
+        code: "OK",
+        data: { id: parsedParams.data.sessionId },
+      });
+    } catch (error) {
+      request.log.error({ error }, "delete session failed");
+      const mapped = mapErrorToHttp(error);
+      return reply.code(mapped.statusCode).send({ code: mapped.code, message: mapped.message });
+    }
+  });
+
   app.post("/v1/interview-sessions/:sessionId/answers", {preHandler: requireAuth}, async (request, reply) => {
     const parsedParams = SessionParamsSchema.safeParse(request.params);
     if (!parsedParams.success) {
