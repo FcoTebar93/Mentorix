@@ -29,10 +29,10 @@ export function LoginPage({ onSuccess }: Props) {
   }
 
   return (
-    <section style={{ maxWidth: 380, margin: "60px auto", display: "grid", gap: 12 }}>
+    <section className="auth-card">
       <h2>Iniciar sesión</h2>
 
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
+      <form onSubmit={onSubmit} className="form-stack">
         <input
           type="email"
           placeholder="Email"
@@ -54,7 +54,7 @@ export function LoginPage({ onSuccess }: Props) {
         </button>
       </form>
 
-      {errorMsg ? <p style={{ color: "crimson" }}>{errorMsg}</p> : null}
+      {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
     </section>
   );
 }

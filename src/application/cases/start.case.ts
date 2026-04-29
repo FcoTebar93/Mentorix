@@ -5,7 +5,7 @@ import type { Clock, IdGenerator, ILlmServiceFactory, TokenService } from "../po
 
 export interface StartFromLinkCommand {
   rawToken: string;
-  guestAlias?: string;
+  guestAlias: string;
   fingerprintHash?: string;
 }
 

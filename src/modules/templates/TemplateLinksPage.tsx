@@ -17,6 +17,13 @@ function formatDate(value?: string): string {
   }).format(date);
 }
 
+function buildAccessUrl(rawToken: string): string {
+  const origin =
+    (typeof window !== "undefined" && window.location?.origin) ||
+    "http://localhost:5173";
+  return `${origin}/interview/${encodeURIComponent(rawToken)}`;
+}
+
 export function TemplateLinksPage({ templateId, onBack }: Props) {
   const [maxUses, setMaxUses] = useState<number>(1);
   const [expiresAt, setExpiresAt] = useState<string>("");
@@ -53,8 +60,12 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
         maxUses,
         expiresAt: expiresAt.trim() || undefined,
       };
-      await templatesApi.createAccessLink(templateId, payload);
-      await loadLinks();
+      const res = await templatesApi.createAccessLink(templateId, payload);
+      const created = res.data;
+      setLinks((prev) => [
+        { ...created, accessUrl: created.rawToken ? buildAccessUrl(created.rawToken) : undefined },
+        ...prev,
+      ]);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "No se pudo crear el link");
     } finally {
@@ -76,8 +87,8 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
   }
 
   return (
-    <section style={{ display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <section className="panel">
+      <div className="panel-header">
         <h2>Links de entrevista</h2>
         <button type="button" onClick={onBack}>
           Volver
@@ -86,8 +97,8 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
 
       <p>Template ID: {templateId}</p>
 
-      <section style={{ display: "grid", gap: 8, maxWidth: 520 }}>
-        <h3 style={{ margin: 0 }}>Crear nuevo link</h3>
+      <section className="form-stack">
+        <h3 className="title-reset">Crear nuevo link</h3>
         <input
           type="number"
           min={1}
@@ -103,26 +114,17 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
         <button type="button" onClick={handleCreate} disabled={!canCreate}>
           {creating ? "Creando..." : "Crear link"}
         </button>
-        {errorMsg ? <p style={{ color: "crimson" }}>{errorMsg}</p> : null}
+        {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
       </section>
 
-      <section style={{ display: "grid", gap: 8 }}>
-        <h3 style={{ margin: 0 }}>Links del template</h3>
+      <section className="card-grid">
+        <h3 className="title-reset">Links del template</h3>
         {loadingLinks ? <p>Cargando links...</p> : null}
         {!loadingLinks && !links.length ? (
           <p>No hay links para este template.</p>
         ) : (
           links.map((link) => (
-            <article
-              key={link.id}
-              style={{
-                border: "1px solid #ddd",
-                borderRadius: 8,
-                padding: 12,
-                display: "grid",
-                gap: 6,
-              }}
-            >
+            <article key={link.id} className="card">
               <strong>{link.id}</strong>
               <span>Status: {link.status}</span>
               <span>Usos: {link.usedCount}/{link.maxUses ?? "∞"}</span>
@@ -130,9 +132,30 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
               <span>Creado: {formatDate(link.createdAt)}</span>
               <span>Revocado: {formatDate(link.revokedAt)}</span>
               {link.rawToken ? (
-                <code style={{ overflowWrap: "anywhere" }}>{link.rawToken}</code>
+                <>
+                  <code className="token-code">{link.rawToken}</code>
+                  <div className="copy-link-row">
+                    <input
+                      readOnly
+                      value={buildAccessUrl(link.rawToken)}
+                      className="copy-link-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(buildAccessUrl(link.rawToken!));
+                        } catch (err) {
+                          setErrorMsg(err instanceof Error ? err.message : "No se pudo copiar el link");
+                        }
+                      }}
+                    >
+                      Copiar URL
+                    </button>
+                  </div>
+                </>
               ) : null}
-              <div>
+              <div className="row-actions">
                 <button
                   type="button"
                   disabled={link.status !== "active" || revokingId === link.id}

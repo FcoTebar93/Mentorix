@@ -41,8 +41,8 @@ export function TemplateListPage({ onCreate, onEdit, onLinks, onResults }: Props
   }, []);
 
   return (
-    <section style={{ display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <section className="panel">
+      <div className="panel-header">
         <h2>Entrevistas</h2>
         <button type="button" onClick={onCreate}>
           Nueva entrevista
@@ -50,16 +50,13 @@ export function TemplateListPage({ onCreate, onEdit, onLinks, onResults }: Props
       </div>
 
       {loading ? <p>Cargando...</p> : null}
-      {errorMsg ? <p style={{ color: "crimson" }}>{errorMsg}</p> : null}
+      {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
 
       {!loading && !errorMsg && !items.length ? <p>No hay entrevistas todavía.</p> : null}
 
-      <div style={{ display: "grid", gap: 10 }}>
+      <div className="card-grid">
         {items.map((t) => (
-          <article
-            key={t.id}
-            style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, display: "grid", gap: 6 }}
-          >
+          <article key={t.id} className="card">
             <strong>{t.title}</strong>
             <span>Rol: {t.role}</span>
             <span>Nivel: {t.level}</span>
@@ -67,7 +64,7 @@ export function TemplateListPage({ onCreate, onEdit, onLinks, onResults }: Props
             <span>Preguntas: {t.totalQuestions}</span>
             <span>Estado: {t.isArchived ? "Archivada" : "Activa"}</span>
 
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="row-actions">
               <button type="button" onClick={() => onEdit(t.id)}>
                 Editar
               </button>

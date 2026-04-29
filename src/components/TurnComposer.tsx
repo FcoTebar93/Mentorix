@@ -64,7 +64,7 @@ export function TurnComposer({
   }
 
   return (
-    <section style={{ display: "grid", gap: 12, maxWidth: 700 }}>
+    <section className="form-stack form-wide">
       <h2>Entrevista en curso</h2>
 
       <div>
@@ -72,7 +72,7 @@ export function TurnComposer({
         <p>{questionText}</p>
       </div>
 
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
+      <form onSubmit={onSubmit} className="form-stack">
         <textarea
           rows={6}
           value={answerText}
@@ -85,7 +85,7 @@ export function TurnComposer({
         </button>
       </form>
 
-      {errorMsg ? <p style={{ color: "crimson" }}>{errorMsg}</p> : null}
+      {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
     </section>
   );
 }

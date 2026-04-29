@@ -1,4 +1,3 @@
-import type React from "react";
 import type { SessionListItem as SessionItem } from "../../lib/interview/types";
 
 type Props = {
@@ -17,42 +16,26 @@ function formatDate(value?: string | null): string {
   }).format(date);
 }
 
-function statusBadgeStyle(status: string): React.CSSProperties {
+function statusBadgeClass(status: string): string {
   const normalized = status.toUpperCase();
 
   if (normalized === "COMPLETED") {
-    return { background: "#dcfce7", color: "#166534", border: "1px solid #86efac" };
+    return "session-badge session-badge-completed";
   }
   if (normalized === "FAILED" || normalized === "CANCELLED") {
-    return { background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" };
+    return "session-badge session-badge-failed";
   }
-  return { background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd" };
+  return "session-badge session-badge-progress";
 }
 
 export function SessionListItem({ session, onOpenReport, onContinue }: Props) {
   const isCompleted = session.status?.toUpperCase() === "COMPLETED";
 
   return (
-    <article
-      style={{
-        border: "1px solid #ddd",
-        borderRadius: 8,
-        padding: 12,
-        display: "grid",
-        gap: 8,
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+    <article className="session-item">
+      <div className="session-item-header">
         <strong>Sesión: {session.id}</strong>
-        <span
-          style={{
-            ...statusBadgeStyle(session.status),
-            borderRadius: 999,
-            padding: "2px 10px",
-            fontSize: 12,
-            fontWeight: 600,
-          }}
-        >
+        <span className={statusBadgeClass(session.status)}>
           {session.status}
         </span>
       </div>
@@ -69,7 +52,7 @@ export function SessionListItem({ session, onOpenReport, onContinue }: Props) {
         <strong>Fin:</strong> {formatDate(session.endedAt)}
       </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="row-actions">
         {isCompleted ? (
           <button type="button" onClick={() => onOpenReport(session.id)}>
             Ver reporte

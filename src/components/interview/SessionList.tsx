@@ -25,7 +25,7 @@ export function SessionList({ sessions, onOpenReport, onContinue }: Props) {
   const sorted = [...sessions].sort((a, b) => getSortableDate(b) - getSortableDate(a));
 
   return (
-    <section style={{ display: "grid", gap: 10 }}>
+    <section className="stack-sm">
       {sorted.map((session) => (
         <SessionListItem
           key={session.id}

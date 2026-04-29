@@ -4,10 +4,12 @@ import { interviewApi } from "../lib/api/interview";
 
 type Props = {
   onStarted: (sessionId: string, firstQuestionId: string) => void;
+  presetToken?: string;
+  showTokenField?: boolean;
 };
 
-export function StartInterviewForm({ onStarted }: Props) {
-  const [rawToken, setRawToken] = useState("");
+export function StartInterviewForm({ onStarted, presetToken, showTokenField = true }: Props) {
+  const [rawToken, setRawToken] = useState(presetToken ?? "");
   const [guestAlias, setGuestAlias] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -20,12 +22,16 @@ export function StartInterviewForm({ onStarted }: Props) {
       setErrorMsg("El token es obligatorio");
       return;
     }
+    if (!guestAlias.trim()) {
+      setErrorMsg("El nombre es obligatorio");
+      return;
+    }
 
     setLoading(true);
     try {
       const res = await interviewApi.startFromLink({
         rawToken: rawToken.trim(),
-        guestAlias: guestAlias.trim() || undefined,
+        guestAlias: guestAlias.trim(),
       });
 
       const session = res.data;
@@ -43,32 +49,35 @@ export function StartInterviewForm({ onStarted }: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, maxWidth: 420 }}>
+    <form onSubmit={onSubmit} className="form-stack form-narrow">
       <h2>Iniciar entrevista</h2>
 
-      <label>
-        Token
-        <input
-          value={rawToken}
-          onChange={(e) => setRawToken(e.target.value)}
-          placeholder="Pega aquí rawToken"
-        />
-      </label>
+      {showTokenField ? (
+        <label>
+          Token
+          <input
+            value={rawToken}
+            onChange={(e) => setRawToken(e.target.value)}
+            placeholder="Pega aquí rawToken"
+          />
+        </label>
+      ) : null}
 
       <label>
-        Alias (opcional)
+        Nombre
         <input
           value={guestAlias}
           onChange={(e) => setGuestAlias(e.target.value)}
-          placeholder="Ej: candidato-fran"
+          placeholder="Ej: Fran"
+          required
         />
       </label>
 
       <button type="submit" disabled={loading}>
-        {loading ? "Iniciando..." : "Empezar"}
+        {loading ? "Iniciando..." : "Comenzar entrevista"}
       </button>
 
-      {errorMsg ? <p style={{ color: "crimson" }}>{errorMsg}</p> : null}
+      {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
     </form>
   );
 }

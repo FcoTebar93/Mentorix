@@ -50,7 +50,7 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
 
   if (loading) {
     return (
-      <section style={{ display: "grid", gap: 12 }}>
+      <section className="stack-md">
         <button type="button" onClick={onBack}>Volver</button>
         <p>Cargando sesión...</p>
       </section>
@@ -59,9 +59,9 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
 
   if (errorMsg) {
     return (
-      <section style={{ display: "grid", gap: 12 }}>
+      <section className="stack-md">
         <button type="button" onClick={onBack}>Volver</button>
-        <p style={{ color: "crimson" }}>{errorMsg}</p>
+        <p className="error-text">{errorMsg}</p>
       </section>
     );
   }
@@ -69,7 +69,7 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
   if (!questionId) return null;
 
   return (
-    <section style={{ display: "grid", gap: 12 }}>
+    <section className="stack-md">
       <button type="button" onClick={onBack}>Volver</button>
       <TurnComposer
         sessionId={sessionId}

@@ -55,14 +55,14 @@ export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
   const canLoadMore = visibleCount < allSessions.length;
 
   return (
-    <section style={{ display: "grid", gap: 12 }}>
+    <section className="stack-md">
       <button type="button" onClick={onBack}>
         Volver
       </button>
 
       <h2>Sesiones</h2>
 
-      <label style={{ display: "grid", gap: 6, maxWidth: 260 }}>
+      <label className="form-label-compact">
         Estado
         <select
           value={filter}
@@ -80,7 +80,7 @@ export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
       </label>
 
       {loading ? <p>Cargando sesiones...</p> : null}
-      {errorMsg ? <p style={{ color: "crimson" }}>{errorMsg}</p> : null}
+      {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
 
       {!loading && !errorMsg ? (
         <>

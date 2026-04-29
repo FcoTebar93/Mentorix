@@ -105,13 +105,13 @@ export function TemplateForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12, maxWidth: 760 }}>
+    <form onSubmit={handleSubmit} className="panel form-stack">
       <h2>{initial ? "Editar entrevista" : "Nueva entrevista"}</h2>
 
       <input placeholder="Título" value={title} onChange={(e) => setTitle(e.target.value)} />
       <input placeholder="Rol" value={role} onChange={(e) => setRole(e.target.value)} />
 
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="row-wrap">
         <select value={level} onChange={(e) => setLevel(e.target.value as CreateTemplateInput["level"])}>
           <option value="junior">junior</option>
           <option value="mid">mid</option>
@@ -133,7 +133,7 @@ export function TemplateForm({
         />
       </div>
 
-      <h3 style={{ margin: "8px 0 0" }}>Rúbrica</h3>
+      <h3 className="section-title">Rúbrica</h3>
       <input
         placeholder="Dimension key (ej: architecture)"
         value={rubricKey}
@@ -161,7 +161,7 @@ export function TemplateForm({
         placeholder="Pass threshold"
       />
 
-      <h3 style={{ margin: "8px 0 0" }}>LLM</h3>
+      <h3 className="section-title">LLM</h3>
       <select
         value={provider}
         onChange={(e) =>
@@ -194,7 +194,7 @@ export function TemplateForm({
         placeholder="max tokens/turn"
       />
 
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="row-actions">
         <button type="submit" disabled={!canSubmit}>
           {loading ? "Guardando..." : submitLabel}
         </button>
@@ -205,7 +205,7 @@ export function TemplateForm({
         ) : null}
       </div>
 
-      {errorMsg ? <p style={{ color: "crimson" }}>{errorMsg}</p> : null}
+      {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
     </form>
   );
 }

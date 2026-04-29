@@ -13,7 +13,6 @@ import { TemplateLinksPage } from "./modules/templates/TemplateLinksPage";
 import { templatesApi } from "./modules/templates/templates.api";
 import type { CreateTemplateInput, InterviewTemplate } from "./modules/templates/types";
 type ViewState =
-  | { step: "start" }
   | { step: "session"; sessionId: string; questionId?: string }
   | { step: "report"; sessionId: string }
   | { step: "sessions" }
@@ -23,8 +22,24 @@ type ViewState =
   | { step: "templates:links"; templateId: string }
   | { step: "templates:results"; templateId: string };
 
+type CandidateState =
+  | { step: "start" }
+  | { step: "session"; sessionId: string; questionId?: string }
+  | { step: "report"; sessionId: string };
+
+function getCandidateTokenFromLocation(): string | null {
+  if (typeof window === "undefined") return null;
+  const { pathname } = window.location;
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts[0] !== "interview" || !parts[1]) return null;
+  return decodeURIComponent(parts[1]);
+}
+
 export default function App() {
-  const [state, setState] = useState<ViewState>({ step: "start" });
+  const candidateToken = getCandidateTokenFromLocation();
+  const isCandidateView = !!candidateToken;
+  const [state, setState] = useState<ViewState>({ step: "templates:list" });
+  const [candidateState, setCandidateState] = useState<CandidateState>({ step: "start" });
   const { logout, user } = useAuth();
 
   const [editingTemplate, setEditingTemplate] = useState<InterviewTemplate | null>(null);
@@ -58,27 +73,55 @@ export default function App() {
   }, [state]);
 
   let content: ReactElement;
+  const activeAdminTab =
+    state.step.startsWith("templates:")
+      ? "templates"
+      : "sessions";
 
-  if (state.step === "start") {
-    content = (
-      <section style={{ display: "grid", gap: 12 }}>
+  if (isCandidateView) {
+    if (candidateState.step === "start") {
+      content = (
         <StartInterviewForm
+          presetToken={candidateToken ?? ""}
+          showTokenField={false}
           onStarted={(sessionId: string, firstQuestionId: string) =>
-            setState({ step: "session", sessionId, questionId: firstQuestionId })
+            setCandidateState({ step: "session", sessionId, questionId: firstQuestionId })
           }
         />
-        <button type="button" onClick={() => setState({ step: "sessions" })}>
-          Ver sesiones
-        </button>
-        <button type="button" onClick={() => setState({ step: "templates:list" })}>
-          Entrevistas
-        </button>
+      );
+    } else if (candidateState.step === "session") {
+      if (!candidateState.questionId) {
+        content = (
+          <SessionLoader
+            sessionId={candidateState.sessionId}
+            onBack={() => setCandidateState({ step: "start" })}
+            onCompleted={() => setCandidateState({ step: "report", sessionId: candidateState.sessionId })}
+          />
+        );
+      } else {
+        content = (
+          <TurnComposer
+            sessionId={candidateState.sessionId}
+            initialQuestionId={candidateState.questionId}
+            onCompleted={() => setCandidateState({ step: "report", sessionId: candidateState.sessionId })}
+          />
+        );
+      }
+    } else {
+      content = <ReportView sessionId={candidateState.sessionId} />;
+    }
+
+    return (
+      <section className="candidate-shell">
+        <section className="candidate-card">{content}</section>
       </section>
     );
-  } else if (state.step === "sessions") {
+  }
+
+  if (state.step === "sessions") {
     content = (
       <SessionsPage
-        onBack={() => setState({ step: "start" })}
+        onBack={() => setState({ step: "templates:list" })}
         onOpenReport={(sessionId: string) => setState({ step: "report", sessionId })}
         onContinue={(sessionId: string) => setState({ step: "session", sessionId })}
       />
@@ -94,7 +137,7 @@ export default function App() {
       );
     } else {
       content = (
-        <section style={{ display: "grid", gap: 12 }}>
+        <section className="stack-md">
           <button type="button" onClick={() => setState({ step: "sessions" })}>
             Volver
           </button>
@@ -132,7 +175,7 @@ export default function App() {
     if (templateLoading) {
       content = <p>Cargando plantilla...</p>;
     } else if (templateError) {
-      content = <p style={{ color: "crimson" }}>{templateError}</p>;
+      content = <p className="error-text">{templateError}</p>;
     } else if (!editingTemplate) {
       content = <p>No se encontró la plantilla.</p>;
     } else {
@@ -152,7 +195,7 @@ export default function App() {
     content = <TemplateLinksPage templateId={state.templateId} onBack={() => setState({ step: "templates:list" })} />;
   } else {
     content = (
-      <section style={{ display: "grid", gap: 12 }}>
+      <section className="stack-md">
         <h2>Resultados de entrevista</h2>
         <p>Template ID: {state.templateId}</p>
         <p>Aqui conectaremos metricas y sesiones filtradas por entrevista.</p>
@@ -165,14 +208,35 @@ export default function App() {
 
   return (
     <AuthGuard>
-      <section style={{ display: "grid", gap: 16 }}>
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <strong>Mentorix Panel {user?.email ? `- ${user.email}` : ""}</strong>
-          <button type="button" onClick={logout}>
+      <section className="app-shell">
+        <header className="app-header">
+          <div className="brand-block">
+            <strong>Mentorix Admin</strong>
+            <span>{user?.email ?? "sin usuario"}</span>
+          </div>
+          <nav className="admin-nav">
+            <button
+              type="button"
+              className={activeAdminTab === "templates" ? "is-active" : ""}
+              onClick={() => setState({ step: "templates:list" })}
+            >
+              Entrevistas
+            </button>
+            <button
+              type="button"
+              className={activeAdminTab === "sessions" ? "is-active" : ""}
+              onClick={() => setState({ step: "sessions" })}
+            >
+              Sesiones
+            </button>
+          </nav>
+          <button type="button" className="btn-ghost" onClick={logout}>
             Salir
           </button>
         </header>
-        {content}
+        <section className="page-content">
+          {content}
+        </section>
       </section>
     </AuthGuard>
   );
