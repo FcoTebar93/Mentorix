@@ -22,4 +22,5 @@ export interface InterviewSessionRepository {
   getById(id: UUID): Promise<InterviewSessionProps | null>;
   getByIdForOwner(id: UUID, ownerUserId: UUID): Promise<InterviewSessionProps | null>;
   list(params?: { ownerUserId?: string; status?: string; limit?: number }): Promise<InterviewSessionProps[]>;
+  removeByIdForOwner(id: UUID, ownerUserId: UUID): Promise<boolean>;
 }

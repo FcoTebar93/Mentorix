@@ -45,6 +45,7 @@ export default function App() {
   const [editingTemplate, setEditingTemplate] = useState<InterviewTemplate | null>(null);
   const [templateLoading, setTemplateLoading] = useState(false);
   const [templateError, setTemplateError] = useState<string | null>(null);
+  const [templateSaving, setTemplateSaving] = useState(false);
 
   useEffect(() => {
     if (state.step !== "templates:edit") return;
@@ -163,11 +164,17 @@ export default function App() {
   } else if (state.step === "templates:new") {
     content = (
       <TemplateForm
+        loading={templateSaving}
         submitLabel="Crear entrevista"
         onCancel={() => setState({ step: "templates:list" })}
         onSubmit={async (payload: CreateTemplateInput) => {
-          await templatesApi.create(payload);
-          setState({ step: "templates:list" });
+          setTemplateSaving(true);
+          try {
+            await templatesApi.create(payload);
+            setState({ step: "templates:list" });
+          } finally {
+            setTemplateSaving(false);
+          }
         }}
       />
     );
@@ -182,11 +189,17 @@ export default function App() {
       content = (
         <TemplateForm
           initial={editingTemplate}
+          loading={templateSaving}
           submitLabel="Guardar cambios"
           onCancel={() => setState({ step: "templates:list" })}
           onSubmit={async (payload: CreateTemplateInput) => {
-            await templatesApi.update(editingTemplate.id, payload);
-            setState({ step: "templates:list" });
+            setTemplateSaving(true);
+            try {
+              await templatesApi.update(editingTemplate.id, payload);
+              setState({ step: "templates:list" });
+            } finally {
+              setTemplateSaving(false);
+            }
           }}
         />
       );

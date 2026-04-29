@@ -5,6 +5,7 @@ type Props = {
   sessions: SessionItem[];
   onOpenReport: (sessionId: string) => void;
   onContinue: (sessionId: string) => void;
+  onDelete: (sessionId: string) => void;
 };
 
 function getSortableDate(session: SessionItem): number {
@@ -17,7 +18,7 @@ function getSortableDate(session: SessionItem): number {
   return 0;
 }
 
-export function SessionList({ sessions, onOpenReport, onContinue }: Props) {
+export function SessionList({ sessions, onOpenReport, onContinue, onDelete }: Props) {
   if (!sessions.length) {
     return <p>No hay sesiones todavía.</p>;
   }
@@ -32,6 +33,7 @@ export function SessionList({ sessions, onOpenReport, onContinue }: Props) {
           session={session}
           onOpenReport={onOpenReport}
           onContinue={onContinue}
+          onDelete={onDelete}
         />
       ))}
     </section>

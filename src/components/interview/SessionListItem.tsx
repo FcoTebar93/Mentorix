@@ -4,6 +4,7 @@ type Props = {
   session: SessionItem;
   onOpenReport: (sessionId: string) => void;
   onContinue: (sessionId: string) => void;
+  onDelete: (sessionId: string) => void;
 };
 
 function formatDate(value?: string | null): string {
@@ -28,7 +29,7 @@ function statusBadgeClass(status: string): string {
   return "session-badge session-badge-progress";
 }
 
-export function SessionListItem({ session, onOpenReport, onContinue }: Props) {
+export function SessionListItem({ session, onOpenReport, onContinue, onDelete }: Props) {
   const isCompleted = session.status?.toUpperCase() === "COMPLETED";
 
   return (
@@ -62,6 +63,9 @@ export function SessionListItem({ session, onOpenReport, onContinue }: Props) {
             Continuar
           </button>
         )}
+        <button type="button" className="btn-ghost" onClick={() => onDelete(session.id)}>
+          Eliminar
+        </button>
       </div>
     </article>
   );

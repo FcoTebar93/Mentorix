@@ -51,6 +51,16 @@ export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
     };
   }, [filter]);
 
+  async function handleDelete(sessionId: string) {
+    setErrorMsg(null);
+    try {
+      await interviewApi.removeSession(sessionId);
+      setAllSessions((prev) => prev.filter((session) => session.id !== sessionId));
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "No se pudo eliminar la sesión");
+    }
+  }
+
   const visibleSessions = allSessions.slice(0, visibleCount);
   const canLoadMore = visibleCount < allSessions.length;
 
@@ -88,6 +98,7 @@ export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
             sessions={visibleSessions}
             onOpenReport={onOpenReport}
             onContinue={onContinue}
+            onDelete={handleDelete}
           />
 
           {canLoadMore ? (
