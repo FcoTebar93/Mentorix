@@ -34,14 +34,19 @@ export interface VoiceInterviewConfig {
   locale: string;
 }
 
+export type InterviewTemplateType = "dynamic" | "question_set";
+
 export interface InterviewTemplate {
   id: UUID;
   ownerUserId: UUID;
+  templateType?: InterviewTemplateType;
   title: string;
   role: string;
   level: "junior" | "mid" | "senior";
   language: string;
   totalQuestions: number;
+  prompt?: string;
+  questions?: string[];
   rubric: EvaluationRubric;
   llmConfig: LlmInterviewConfig;
   voiceConfig?: VoiceInterviewConfig;

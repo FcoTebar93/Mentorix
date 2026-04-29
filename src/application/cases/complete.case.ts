@@ -32,26 +32,34 @@ export class CompleteSessionCase {
       const template = await this.templates.getById(session.state.templateId);
       if (!template) throw new Error("TEMPLATE_NOT_FOUND");
 
-      const llm =
-        this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["custom"]) ??
-        this.llmFactory.forTemplate(template.llmConfig);
+      let nextQuestionText: string;
+      if (template.templateType === "question_set") {
+        const next = template.questions?.[session.state.currentQuestionIndex];
+        if (!next) throw new Error("TEMPLATE_QUESTION_NOT_FOUND");
+        nextQuestionText = next;
+      } else {
+        const llm =
+          this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["custom"]) ??
+          this.llmFactory.forTemplate(template.llmConfig);
 
-      let generated: { text: string };
-      try {
-        generated = await llm.generateQuestion({
-          role: template.role,
-          level: template.level,
-          language: template.language,
-          previousQuestions: session.state.questions.map((q) => q.text),
-        });
-      } catch {
-        throw new Error("LLM_QUESTION_GENERATION_FAILED");
+        let generated: { text: string };
+        try {
+          generated = await llm.generateQuestion({
+            role: template.role,
+            level: template.level,
+            language: template.language,
+            previousQuestions: session.state.questions.map((q) => q.text),
+          });
+        } catch {
+          throw new Error("LLM_QUESTION_GENERATION_FAILED");
+        }
+        nextQuestionText = generated.text;
       }
 
       const nextQuestion: SessionQuestion = {
         id: this.ids.uuid(),
         index: session.state.currentQuestionIndex + 1,
-        text: generated.text,
+        text: nextQuestionText,
         generatedByModel: template.llmConfig.model,
         createdAt: now,
       };

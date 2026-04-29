@@ -36,20 +36,27 @@ export class StartSessionFromLinkCase {
     if (!template){
         throw new Error("TEMPLATE_NOT_FOUND");
     }
-    const llm =
-      this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["custom"]) ??
-      this.llmFactory.forTemplate(template.llmConfig);
-
-    let generated: { text: string };
-    try {
-      generated = await llm.generateQuestion({
-        role: template.role,
-        level: template.level,
-        language: template.language,
-        previousQuestions: [],
-      });
-    } catch {
-      throw new Error("LLM_QUESTION_GENERATION_FAILED");
+    let firstQuestionText: string;
+    if (template.templateType === "question_set") {
+      const first = template.questions?.[0];
+      if (!first) throw new Error("TEMPLATE_QUESTIONS_REQUIRED");
+      firstQuestionText = first;
+    } else {
+      const llm =
+        this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["custom"]) ??
+        this.llmFactory.forTemplate(template.llmConfig);
+      let generated: { text: string };
+      try {
+        generated = await llm.generateQuestion({
+          role: template.role,
+          level: template.level,
+          language: template.language,
+          previousQuestions: [],
+        });
+      } catch {
+        throw new Error("LLM_QUESTION_GENERATION_FAILED");
+      }
+      firstQuestionText = generated.text;
     }
 
     const props: InterviewSessionProps = {
@@ -81,7 +88,7 @@ export class StartSessionFromLinkCase {
     const firstQuestion: SessionQuestion = {
       id: this.ids.uuid(),
       index: 1,
-      text: generated.text,
+      text: firstQuestionText,
       generatedByModel: template.llmConfig.model,
       createdAt: this.clock.nowISO(),
     };
