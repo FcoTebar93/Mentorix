@@ -26,7 +26,7 @@ export type RubricDimension = {
 
 export type StartFromLinkBody = {
   rawToken: string;
-  guestAlias?: string;
+  guestAlias: string;
   fingerprintHash?: string;
 };
 

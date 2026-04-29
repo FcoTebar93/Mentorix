@@ -3,7 +3,7 @@ import type { LoginRequest, LoginResponse } from "./types";
 
 const API_BASE_URL =
   (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_API_URL ??
-  process.env.API_BASE_URL ??
+  (typeof process !== "undefined" ? process.env?.API_BASE_URL : undefined) ??
   "http://localhost:4000";
 
 export const authApi = {

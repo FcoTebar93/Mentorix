@@ -52,6 +52,7 @@ export type AccessLink = {
   createdAt: string;
   revokedAt?: string;
   rawToken?: string;
+  accessUrl?: string;
 };
 
 export type CreateAccessLinkInput = {
