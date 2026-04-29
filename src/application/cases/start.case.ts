@@ -122,6 +122,9 @@ export class StartSessionFromLinkCase {
     await this.sessions.save(session.state);
 
     link.usedCount += 1;
+    if (typeof link.maxUses === "number" && link.usedCount >= link.maxUses) {
+      link.status = "expired";
+    }
     await this.links.save(link);
 
     return session.state;

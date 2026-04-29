@@ -24,6 +24,30 @@ function buildAccessUrl(rawToken: string): string {
   return `${origin}/interview/${encodeURIComponent(rawToken)}`;
 }
 
+function localStorageKey(templateId: string): string {
+  return `mentorix:template:${templateId}:access-links`;
+}
+
+function loadCachedTokens(templateId: string): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(localStorageKey(templateId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+function saveCachedToken(templateId: string, linkId: string, rawToken: string): void {
+  if (typeof window === "undefined") return;
+  const cache = loadCachedTokens(templateId);
+  cache[linkId] = rawToken;
+  window.localStorage.setItem(localStorageKey(templateId), JSON.stringify(cache));
+}
+
 export function TemplateLinksPage({ templateId, onBack }: Props) {
   const [maxUses, setMaxUses] = useState<number>(1);
   const [expiresAt, setExpiresAt] = useState<string>("");
@@ -36,10 +60,21 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
   const canCreate = useMemo(() => maxUses > 0 && !creating, [maxUses, creating]);
 
   async function loadLinks() {
+    setErrorMsg(null);
+    setLinks([]);
     setLoadingLinks(true);
     try {
       const res = await templatesApi.listAccessLinks(templateId);
-      setLinks(res.data ?? []);
+      const cache = loadCachedTokens(templateId);
+      const merged = (res.data ?? []).map((link) => {
+        const rawToken = link.rawToken ?? cache[link.id];
+        return {
+          ...link,
+          rawToken,
+          accessUrl: rawToken ? buildAccessUrl(rawToken) : undefined,
+        };
+      });
+      setLinks(merged);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "No se pudieron cargar los links");
     } finally {
@@ -62,6 +97,9 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
       };
       const res = await templatesApi.createAccessLink(templateId, payload);
       const created = res.data;
+      if (created.rawToken) {
+        saveCachedToken(templateId, created.id, created.rawToken);
+      }
       setLinks((prev) => [
         { ...created, accessUrl: created.rawToken ? buildAccessUrl(created.rawToken) : undefined },
         ...prev,
@@ -126,7 +164,9 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
           links.map((link) => (
             <article key={link.id} className="card">
               <strong>{link.id}</strong>
-              <span>Status: {link.status}</span>
+              <span>
+                Status: {typeof link.maxUses === "number" && link.usedCount >= link.maxUses ? "expired" : link.status}
+              </span>
               <span>Usos: {link.usedCount}/{link.maxUses ?? "∞"}</span>
               <span>Expira: {formatDate(link.expiresAt)}</span>
               <span>Creado: {formatDate(link.createdAt)}</span>
@@ -154,7 +194,9 @@ export function TemplateLinksPage({ templateId, onBack }: Props) {
                     </button>
                   </div>
                 </>
-              ) : null}
+              ) : (
+                <small>Token oculto por seguridad. Solo se muestra al crear el link.</small>
+              )}
               <div className="row-actions">
                 <button
                   type="button"

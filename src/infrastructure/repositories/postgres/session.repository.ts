@@ -142,10 +142,11 @@ export class PgInterviewSessionRepository implements InterviewSessionRepository 
   }
 
   async removeByIdForOwner(id: string, ownerUserId: string): Promise<boolean> {
-    const result = await getDb()
+    const deletedRows = await getDb()
       .delete(interviewSessionsTable)
-      .where(and(eq(interviewSessionsTable.id, id), eq(interviewSessionsTable.ownerUserId, ownerUserId)));
+      .where(and(eq(interviewSessionsTable.id, id), eq(interviewSessionsTable.ownerUserId, ownerUserId)))
+      .returning({ id: interviewSessionsTable.id });
 
-    return (result.rowCount ?? 0) > 0;
+    return deletedRows.length > 0;
   }
 }

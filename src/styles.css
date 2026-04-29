@@ -726,6 +726,7 @@ body {
   background:
     linear-gradient(180deg, #f8fbff 0%, #eef5ff 45%, #e7f9f2 100%);
   color: #0f172a;
+  overflow-x: hidden;
 }
 
 body::before {
@@ -735,7 +736,7 @@ body::before {
 .app-shell {
   max-width: 1240px;
   gap: 32px;
-  padding: 32px 24px 40px;
+  padding: 0 24px 40px;
 }
 
 .app-header,
@@ -860,6 +861,17 @@ button:focus-visible {
 .page-content,
 .candidate-card {
   padding: 24px;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  width: 100dvw;
+  margin-left: calc(50% - 50vw);
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
 }
 
 .card,

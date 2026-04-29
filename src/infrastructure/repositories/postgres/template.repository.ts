@@ -135,10 +135,11 @@ export class PgInterviewTemplateRepository implements InterviewTemplateRepositor
   }
 
   async removeByIdForOwner(id: string, ownerUserId: string): Promise<boolean> {
-    const result = await getDb()
+    const deletedRows = await getDb()
       .delete(interviewTemplatesTable)
-      .where(and(eq(interviewTemplatesTable.id, id), eq(interviewTemplatesTable.ownerUserId, ownerUserId)));
+      .where(and(eq(interviewTemplatesTable.id, id), eq(interviewTemplatesTable.ownerUserId, ownerUserId)))
+      .returning({ id: interviewTemplatesTable.id });
 
-    return (result.rowCount ?? 0) > 0;
+    return deletedRows.length > 0;
   }
 }
