@@ -1,4 +1,5 @@
 export type TemplateLevel = "junior" | "mid" | "senior";
+export type TemplateType = "dynamic" | "question_set";
 
 export type RubricDimension = {
   key: string;
@@ -9,11 +10,14 @@ export type RubricDimension = {
 export type InterviewTemplate = {
   id: string;
   ownerUserId: string;
+  templateType: TemplateType;
   title: string;
   role: string;
   level: TemplateLevel;
   language: string;
   totalQuestions: number;
+  prompt: string;
+  questions: string[];
   rubric: {
     dimensions: RubricDimension[];
     passThreshold: number;
@@ -36,7 +40,7 @@ export type InterviewTemplate = {
 
 export type CreateTemplateInput = Omit<
   InterviewTemplate,
-  "id" | "ownerUserId" | "isArchived" | "createdAt" | "updatedAt"
+  "id" | "ownerUserId" | "isArchived" | "createdAt" | "updatedAt" | "llmConfig"
 >;
 
 export type UpdateTemplateInput = Partial<CreateTemplateInput>;

@@ -16,11 +16,16 @@ export function TemplateForm({
   onSubmit,
   onCancel,
 }: Props) {
+  const [templateType, setTemplateType] = useState<CreateTemplateInput["templateType"]>(
+    initial?.templateType ?? "dynamic"
+  );
   const [title, setTitle] = useState(initial?.title ?? "");
   const [role, setRole] = useState(initial?.role ?? "");
   const [level, setLevel] = useState<CreateTemplateInput["level"]>(initial?.level ?? "mid");
   const [language, setLanguage] = useState(initial?.language ?? "es");
   const [totalQuestions, setTotalQuestions] = useState(initial?.totalQuestions ?? 5);
+  const [prompt, setPrompt] = useState(initial?.prompt ?? "");
+  const [questionsText, setQuestionsText] = useState((initial?.questions ?? []).join("\n"));
 
   const [rubricKey, setRubricKey] = useState(initial?.rubric.dimensions[0]?.key ?? "architecture");
   const [rubricWeight, setRubricWeight] = useState(initial?.rubric.dimensions[0]?.weight ?? 1);
@@ -29,26 +34,21 @@ export function TemplateForm({
   );
   const [passThreshold, setPassThreshold] = useState(initial?.rubric.passThreshold ?? 70);
 
-  const [provider, setProvider] = useState<CreateTemplateInput["llmConfig"]["provider"]>(
-    initial?.llmConfig.provider ?? "openai"
-  );
-  const [model, setModel] = useState(initial?.llmConfig.model ?? "gpt-4o-mini");
-  const [temperature, setTemperature] = useState(initial?.llmConfig.temperature ?? 0.2);
-  const [maxTokensPerTurn, setMaxTokensPerTurn] = useState(
-    initial?.llmConfig.maxTokensPerTurn ?? 700
-  );
-
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => {
+    const parsedQuestions = questionsText
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
     return (
       title.trim().length > 0 &&
       role.trim().length > 0 &&
       language.trim().length >= 2 &&
       rubricKey.trim().length > 0 &&
       rubricDescription.trim().length > 0 &&
-      model.trim().length > 0 &&
-      totalQuestions > 0 &&
+      (templateType === "dynamic" ? prompt.trim().length > 0 && totalQuestions > 0 : parsedQuestions.length > 0) &&
       rubricWeight > 0 &&
       passThreshold >= 0 &&
       passThreshold <= 100 &&
@@ -58,9 +58,11 @@ export function TemplateForm({
     title,
     role,
     language,
+    templateType,
+    prompt,
+    questionsText,
     rubricKey,
     rubricDescription,
-    model,
     totalQuestions,
     rubricWeight,
     passThreshold,
@@ -73,12 +75,20 @@ export function TemplateForm({
 
     setErrorMsg(null);
 
+    const parsedQuestions = questionsText
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
     const payload: CreateTemplateInput = {
+      templateType,
       title: title.trim(),
       role: role.trim(),
       level,
       language: language.trim(),
-      totalQuestions,
+      totalQuestions: templateType === "dynamic" ? totalQuestions : parsedQuestions.length,
+      prompt: templateType === "dynamic" ? prompt.trim() : "",
+      questions: templateType === "question_set" ? parsedQuestions : [],
       rubric: {
         dimensions: [
           {
@@ -88,12 +98,6 @@ export function TemplateForm({
           },
         ],
         passThreshold,
-      },
-      llmConfig: {
-        provider,
-        model: model.trim(),
-        temperature,
-        maxTokensPerTurn,
       },
     };
 
@@ -107,6 +111,11 @@ export function TemplateForm({
   return (
     <form onSubmit={handleSubmit} className="panel form-stack">
       <h2>{initial ? "Editar entrevista" : "Nueva entrevista"}</h2>
+
+      <select value={templateType} onChange={(e) => setTemplateType(e.target.value as CreateTemplateInput["templateType"])}>
+        <option value="dynamic">Dinámica (prompt + LLM)</option>
+        <option value="question_set">Preguntas fijas</option>
+      </select>
 
       <input placeholder="Título" value={title} onChange={(e) => setTitle(e.target.value)} />
       <input placeholder="Rol" value={role} onChange={(e) => setRole(e.target.value)} />
@@ -123,15 +132,32 @@ export function TemplateForm({
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
         />
-
-        <input
-          type="number"
-          min={1}
-          value={totalQuestions}
-          onChange={(e) => setTotalQuestions(Number(e.target.value))}
-          placeholder="Nº preguntas"
-        />
       </div>
+
+      {templateType === "dynamic" ? (
+        <>
+          <textarea
+            rows={5}
+            placeholder="Prompt base para guiar la entrevista"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+          />
+          <input
+            type="number"
+            min={1}
+            value={totalQuestions}
+            onChange={(e) => setTotalQuestions(Number(e.target.value))}
+            placeholder="Nº preguntas"
+          />
+        </>
+      ) : (
+        <textarea
+          rows={8}
+          placeholder={"Una pregunta por linea"}
+          value={questionsText}
+          onChange={(e) => setQuestionsText(e.target.value)}
+        />
+      )}
 
       <h3 className="section-title">Rúbrica</h3>
       <input
@@ -159,39 +185,6 @@ export function TemplateForm({
         value={passThreshold}
         onChange={(e) => setPassThreshold(Number(e.target.value))}
         placeholder="Pass threshold"
-      />
-
-      <h3 className="section-title">LLM</h3>
-      <select
-        value={provider}
-        onChange={(e) =>
-          setProvider(e.target.value as CreateTemplateInput["llmConfig"]["provider"])
-        }
-      >
-        <option value="openai">openai</option>
-        <option value="anthropic">anthropic</option>
-        <option value="google">google</option>
-        <option value="azure">azure</option>
-        <option value="ollama">ollama</option>
-        <option value="custom">custom</option>
-        <option value="mock">mock</option>
-      </select>
-      <input placeholder="Modelo" value={model} onChange={(e) => setModel(e.target.value)} />
-      <input
-        type="number"
-        min={0}
-        max={2}
-        step={0.1}
-        value={temperature}
-        onChange={(e) => setTemperature(Number(e.target.value))}
-        placeholder="temperature"
-      />
-      <input
-        type="number"
-        min={1}
-        value={maxTokensPerTurn}
-        onChange={(e) => setMaxTokensPerTurn(Number(e.target.value))}
-        placeholder="max tokens/turn"
       />
 
       <div className="row-actions">

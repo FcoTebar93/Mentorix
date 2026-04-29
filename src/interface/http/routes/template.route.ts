@@ -13,19 +13,11 @@ const LlmProviderSchema = z.enum([
   "mock",
 ]);
 
-const LlmConfigSchema = z.object({
-  provider: LlmProviderSchema,
-  model: z.string().min(1),
-  temperature: z.number().min(0).max(2),
-  maxTokensPerTurn: z.number().int().positive().max(8000),
-});
-
-const CreateTemplateBodySchema = z.object({
+const BaseTemplateSchema = z.object({
   title: z.string().min(1),
   role: z.string().min(1),
   level: z.enum(["junior", "mid", "senior"]),
   language: z.string().min(2),
-  totalQuestions: z.number().int().positive(),
   rubric: z.object({
     dimensions: z.array(
       z.object({
@@ -36,7 +28,6 @@ const CreateTemplateBodySchema = z.object({
     ),
     passThreshold: z.number().min(0).max(100),
   }),
-  llmConfig: LlmConfigSchema,
   voiceConfig: z
     .object({
       sttProvider: z.string().min(1),
@@ -46,7 +37,28 @@ const CreateTemplateBodySchema = z.object({
     .optional(),
 });
 
-const UpdateTemplateBodySchema = CreateTemplateBodySchema.partial().refine(
+const DynamicTemplateBodySchema = BaseTemplateSchema.extend({
+  templateType: z.literal("dynamic"),
+  prompt: z.string().min(1),
+  totalQuestions: z.number().int().positive(),
+});
+
+const QuestionSetTemplateBodySchema = BaseTemplateSchema.extend({
+  templateType: z.literal("question_set"),
+  questions: z.array(z.string().min(1)).min(1),
+});
+
+const CreateTemplateBodySchema = z.discriminatedUnion("templateType", [
+  DynamicTemplateBodySchema,
+  QuestionSetTemplateBodySchema,
+]);
+
+const UpdateTemplateBodySchema = BaseTemplateSchema.extend({
+  templateType: z.enum(["dynamic", "question_set"]).optional(),
+  prompt: z.string().min(1).optional(),
+  totalQuestions: z.number().int().positive().optional(),
+  questions: z.array(z.string().min(1)).min(1).optional(),
+}).partial().refine(
   (body) => Object.keys(body).length > 0,
   { message: "At least one field must be provided" }
 );
@@ -56,6 +68,13 @@ const TemplateParamsSchema = z.object({
 });
 
 export const registerTemplateRoutes: RegisterRoutes = (app, container) => {
+  const llmConfigFromEnv = {
+    provider: LlmProviderSchema.parse((process.env.LLM_PROVIDER ?? "openai").toLowerCase()),
+    model: process.env.LLM_MODEL ?? "gpt-4o-mini",
+    temperature: Number(process.env.LLM_TEMPERATURE ?? "0.2"),
+    maxTokensPerTurn: Number(process.env.LLM_MAX_TOKENS ?? "700"),
+  };
+
   app.get("/v1/templates", { preHandler: requireAuth }, async (request, reply) => {
     try {
       const templates = await container.repositories.templates.listByOwner(request.user!.id);
@@ -126,13 +145,20 @@ export const registerTemplateRoutes: RegisterRoutes = (app, container) => {
     try {
       const template = await container.useCases.createTemplate.execute({
         ownerUserId: request.user!.id,
+        templateType: parsedBody.data.templateType,
         title: parsedBody.data.title,
         role: parsedBody.data.role,
         level: parsedBody.data.level,
         language: parsedBody.data.language,
-        totalQuestions: parsedBody.data.totalQuestions,
+        totalQuestions:
+          parsedBody.data.templateType === "question_set"
+            ? parsedBody.data.questions.length
+            : parsedBody.data.totalQuestions,
+        prompt: parsedBody.data.templateType === "dynamic" ? parsedBody.data.prompt : "",
+        questions:
+          parsedBody.data.templateType === "question_set" ? parsedBody.data.questions : [],
         rubric: parsedBody.data.rubric,
-        llmConfig: parsedBody.data.llmConfig,
+        llmConfig: llmConfigFromEnv,
         voiceConfig: parsedBody.data.voiceConfig,
       });
 
@@ -183,9 +209,28 @@ export const registerTemplateRoutes: RegisterRoutes = (app, container) => {
         });
       }
 
+      const nextTemplateType = parsedBody.data.templateType ?? existing.templateType;
+      const nextQuestions =
+        nextTemplateType === "question_set"
+          ? parsedBody.data.questions ?? existing.questions ?? []
+          : [];
+      const nextPrompt =
+        nextTemplateType === "dynamic"
+          ? parsedBody.data.prompt ?? existing.prompt ?? ""
+          : "";
+      const nextTotalQuestions =
+        nextTemplateType === "question_set"
+          ? nextQuestions.length
+          : parsedBody.data.totalQuestions ?? existing.totalQuestions;
+
       const updated = {
         ...existing,
         ...parsedBody.data,
+        templateType: nextTemplateType,
+        prompt: nextPrompt,
+        questions: nextQuestions,
+        totalQuestions: nextTotalQuestions,
+        llmConfig: llmConfigFromEnv,
         updatedAt: new Date().toISOString(),
       };
 
