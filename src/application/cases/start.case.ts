@@ -64,9 +64,7 @@ export class StartSessionFromLinkCase {
       if (!first) throw new Error("TEMPLATE_QUESTIONS_REQUIRED");
       firstQuestionText = first;
     } else {
-      const llm =
-        this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["custom"]) ??
-        this.llmFactory.forTemplate(template.llmConfig);
+      const llm = this.llmFactory.forTemplate(template.llmConfig);
       let generated: { text: string };
       try {
         generated = await llm.generateQuestion({

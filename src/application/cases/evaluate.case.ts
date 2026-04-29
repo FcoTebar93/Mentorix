@@ -29,9 +29,7 @@ export class EvaluateAnswerCase {
       if (!template){
         throw new Error("TEMPLATE_NOT_FOUND");
     }
-    const llm =
-      this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["custom"]) ??
-      this.llmFactory.forTemplate(template.llmConfig);
+    const llm = this.llmFactory.forTemplate(template.llmConfig);
 
     const lastAnswer = session.state.answers[session.state.answers.length - 1];
     const lastQuestion = session.state.questions[session.state.questions.length - 1];
@@ -43,7 +41,10 @@ export class EvaluateAnswerCase {
         answer: lastAnswer,
         rubric: { dimensions: command.rubricDimensions },
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("LLM_")) {
+        throw error;
+      }
       throw new Error("LLM_EVALUATION_FAILED");
     }
 

@@ -38,9 +38,7 @@ export class CompleteSessionCase {
         if (!next) throw new Error("TEMPLATE_QUESTION_NOT_FOUND");
         nextQuestionText = next;
       } else {
-        const llm =
-          this.llmFactory.forTemplateWithFallback?.(template.llmConfig, ["custom"]) ??
-          this.llmFactory.forTemplate(template.llmConfig);
+        const llm = this.llmFactory.forTemplate(template.llmConfig);
 
         let generated: { text: string };
         try {
