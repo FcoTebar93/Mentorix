@@ -241,4 +241,100 @@ describe("Use case flow integration", () => {
     expect(primaryCalls).toBe(1);
     expect(fallbackCalls).toBe(1);
   });
+
+  it("propagates dynamic prompt to question generation", async () => {
+    const sessions = new InMemoryInterviewSessionRepository();
+    const templates = new InMemoryInterviewTemplateRepository();
+    const ids = new SystemIdGenerator();
+    const clock = new SystemClock();
+
+    const expectedPrompt = "Haz foco en razonamiento arquitectonico y decisiones tecnicas.";
+
+    await templates.save({
+      id: "t-prompt-1",
+      ownerUserId: "u1",
+      templateType: "dynamic",
+      title: "Prompt Template",
+      role: "Backend Engineer",
+      level: "mid",
+      language: "es",
+      totalQuestions: 2,
+      prompt: expectedPrompt,
+      questions: [],
+      rubric: {
+        dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+        passThreshold: 70,
+      },
+      llmConfig: {
+        provider: "openai",
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        maxTokensPerTurn: 600,
+      },
+      isArchived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    let capturedPrompt: string | undefined;
+    const llmStub: ILlmService = {
+      async generateQuestion(input: GenerateQuestionInput): Promise<{ text: string }> {
+        capturedPrompt = input.prompt;
+        return { text: "generated with prompt" };
+      },
+      async evaluateAnswer(_input: EvaluateAnswerInput): Promise<LlmEvaluationDraft> {
+        return {
+          score: 80,
+          dimensionScores: { architecture: 80 },
+          strengths: ["ok"],
+          improvements: ["more depth"],
+          confidence: 0.9,
+        };
+      },
+    };
+
+    const llmFactory: ILlmServiceFactory = {
+      forTemplate() {
+        return llmStub;
+      },
+      forTemplateWithFallback() {
+        return llmStub;
+      },
+    };
+
+    const completeCase = new CompleteSessionCase(sessions, templates, llmFactory, ids, clock);
+
+    const seeded: InterviewSessionProps = {
+      id: "s-prompt-1",
+      templateId: "t-prompt-1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "Fran" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "FEEDBACKING",
+      currentQuestionIndex: 1,
+      totalQuestions: 2,
+      questions: [
+        {
+          id: "q1",
+          index: 1,
+          text: "Pregunta inicial",
+          generatedByModel: "manual",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    };
+
+    await sessions.save(seeded);
+
+    const completed = await completeCase.execute({ sessionId: "s-prompt-1" });
+
+    expect(completed.status).toBe("ASKING");
+    expect(capturedPrompt).toBe(expectedPrompt);
+    expect(completed.questions[1].text).toBe("generated with prompt");
+  });
 });

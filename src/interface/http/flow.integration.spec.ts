@@ -15,20 +15,16 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
         url: "/v1/templates",
         headers: auth("u1"),
         payload: {
+          templateType: "dynamic",
           title: "E2E Backend Interview",
           role: "Backend Engineer",
           level: "mid",
           language: "es",
+          prompt: "Entrevista tecnica corta enfocada en backend.",
           totalQuestions: 1,
           rubric: {
             dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
             passThreshold: 70,
-          },
-          llmConfig: {
-            provider: "openai",
-            model: "gpt-4o-mini",
-            temperature: 0.2,
-            maxTokensPerTurn: 700,
           },
         },
       });
@@ -52,7 +48,6 @@ describe("HTTP interview flow", { timeout: 15000 }, () => {
       const startRes = await app.inject({
         method: "POST",
         url: "/v1/interview-sessions/from-link",
-        headers: auth("u1"),
         payload: { rawToken, guestAlias: "candidate-e2e" },
       });
 
