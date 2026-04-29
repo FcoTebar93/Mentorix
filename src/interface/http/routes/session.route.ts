@@ -13,7 +13,7 @@ import { mapErrorToHttp } from "../mappers/http-error.js";
 import { requireAuth } from "../auth.handler.js";
 
 export const registerSessionRoutes: RegisterRoutes = (app, container) => {
-  app.post("/v1/interview-sessions/from-link", { preHandler: requireAuth }, async (request, reply) => {
+  app.post("/v1/interview-sessions/from-link", async (request, reply) => {
     const parsedBody = StartFromLinkBodySchema.safeParse(request.body);
     if (!parsedBody.success) {
       return reply.code(400).send({

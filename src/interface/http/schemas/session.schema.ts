@@ -6,7 +6,7 @@ export const SessionParamsSchema = z.object({
 
 export const StartFromLinkBodySchema = z.object({
   rawToken: z.string().min(1),
-  guestAlias: z.string().optional(),
+  guestAlias: z.string().min(1),
   fingerprintHash: z.string().optional(),
 });
 
