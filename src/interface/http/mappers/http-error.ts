@@ -77,6 +77,24 @@ export function mapErrorToHttp(error: unknown): HttpErrorShape {
           code: "LLM_QUESTION_GENERATION_FAILED",
           message: "LLM provider question generation failed",
         };
+      case "LLM_API_KEY_INVALID":
+        return {
+          statusCode: 502,
+          code: "LLM_API_KEY_INVALID",
+          message: "Invalid API key for configured LLM provider",
+        };
+      case "LLM_MODEL_NOT_FOUND":
+        return {
+          statusCode: 502,
+          code: "LLM_MODEL_NOT_FOUND",
+          message: "Configured LLM model was not found",
+        };
+      case "LLM_API_KEY_MISSING":
+        return {
+          statusCode: 502,
+          code: "LLM_API_KEY_MISSING",
+          message: "Missing API key for configured LLM provider",
+        };
       default:
         break;
     }

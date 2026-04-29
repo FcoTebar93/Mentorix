@@ -23,7 +23,7 @@ export type InterviewTemplate = {
     passThreshold: number;
   };
   llmConfig: {
-    provider: "openai" | "anthropic" | "google" | "azure" | "ollama" | "custom" | "mock";
+    provider: "openai" | "groq" | "anthropic" | "google" | "azure" | "ollama" | "custom" | "mock";
     model: string;
     temperature: number;
     maxTokensPerTurn: number;

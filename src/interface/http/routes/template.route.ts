@@ -5,6 +5,7 @@ import { requireAuth } from "../auth.handler.js";
 
 const LlmProviderSchema = z.enum([
   "openai",
+  "groq",
   "anthropic",
   "google",
   "azure",

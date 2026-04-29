@@ -15,6 +15,7 @@ type FactoryEnv = NodeJS.ProcessEnv;
 
 const SUPPORTED_PROVIDERS: ReadonlySet<LlmProvider> = new Set([
   "openai",
+  "groq",
   "anthropic",
   "google",
   "azure",
@@ -95,11 +96,14 @@ export class EnvLlmServiceFactory implements ILlmServiceFactory {
   }
 
   private buildConfigForProvider(config: LlmInterviewConfig, provider: LlmProvider): LlmProviderConfig {
+    const resolvedProvider = provider === "groq" ? "groq" : provider;
+    const fallbackModel =
+      resolvedProvider === "groq" ? "llama-3.3-70b-versatile" : "gpt-4o-mini";
     return {
-      provider,
-      apiKey: this.resolveApiKey(provider),
-      baseUrl: this.resolveBaseUrl(provider),
-      model: config.model || this.env.LLM_MODEL || "gpt-4o-mini",
+      provider: resolvedProvider,
+      apiKey: this.resolveApiKey(resolvedProvider),
+      baseUrl: this.resolveBaseUrl(resolvedProvider),
+      model: config.model || this.env.LLM_MODEL || fallbackModel,
       temperature: Number.isFinite(config.temperature)
         ? config.temperature
         : asNumber(this.env.LLM_TEMPERATURE, 0.2),
@@ -114,6 +118,8 @@ export class EnvLlmServiceFactory implements ILlmServiceFactory {
     switch (provider) {
       case "openai":
         return pickFirst(this.env.OPENAI_API_KEY, this.env.LLM_API_KEY);
+      case "groq":
+        return pickFirst(this.env.GROQ_API_KEY, this.env.LLM_API_KEY, this.env.OPENAI_API_KEY);
       case "anthropic":
         return pickFirst(this.env.ANTHROPIC_API_KEY, this.env.LLM_API_KEY);
       case "google":
@@ -129,6 +135,8 @@ export class EnvLlmServiceFactory implements ILlmServiceFactory {
     switch (provider) {
       case "openai":
         return pickFirst(this.env.OPENAI_BASE_URL, this.env.LLM_BASE_URL);
+      case "groq":
+        return pickFirst(this.env.GROQ_BASE_URL, this.env.LLM_BASE_URL, "https://api.groq.com/openai");
       case "anthropic":
         return pickFirst(this.env.ANTHROPIC_BASE_URL, this.env.LLM_BASE_URL);
       case "google":
