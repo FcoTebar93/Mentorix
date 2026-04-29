@@ -28,13 +28,35 @@ export class StartSessionFromLinkCase {
     if (link.expiresAt && new Date(link.expiresAt) <= new Date(this.clock.nowISO())) {
       throw new Error("ACCESS_LINK_EXPIRED");
     }
-    if (typeof link.maxUses === "number" && link.usedCount >= link.maxUses) {
-      throw new Error("ACCESS_LINK_MAX_USES_REACHED");
-    }
 
     const template = await this.templates.getById(link.templateId);
     if (!template){
         throw new Error("TEMPLATE_NOT_FOUND");
+    }
+
+    const normalizedAlias = command.guestAlias.trim().toLowerCase();
+    const existingSessions = await this.sessions.list({
+      ownerUserId: template.ownerUserId,
+      limit: 100,
+    });
+    const duplicatedSession = existingSessions.find((session) => {
+      const sameLink =
+        session.entryPoint?.mode === "shared_link" && session.entryPoint?.accessLinkId === link.id;
+      const sameAlias =
+        (session.participant?.guestAlias ?? "").trim().toLowerCase() === normalizedAlias;
+      const isActive =
+        session.status === "IDLE" ||
+        session.status === "ASKING" ||
+        session.status === "EVALUATING" ||
+        session.status === "FEEDBACKING";
+      return sameLink && sameAlias && isActive;
+    });
+    if (duplicatedSession) {
+      return duplicatedSession;
+    }
+
+    if (typeof link.maxUses === "number" && link.usedCount >= link.maxUses) {
+      throw new Error("ACCESS_LINK_MAX_USES_REACHED");
     }
     let firstQuestionText: string;
     if (template.templateType === "question_set") {

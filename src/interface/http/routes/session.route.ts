@@ -32,7 +32,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
     
       return reply.code(201).send({ code: "OK", data: session });
     } catch (error) {
-      request.log.error({ error }, "start from link failed");
+      request.log.error({ err: error }, "start from link failed");
       const mapped = mapErrorToHttp(error);
       return reply.code(mapped.statusCode).send({ code: mapped.code, message: mapped.message });
     }
