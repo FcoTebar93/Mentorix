@@ -95,6 +95,23 @@ export function mapErrorToHttp(error: unknown): HttpErrorShape {
           code: "LLM_API_KEY_MISSING",
           message: "Missing API key for configured LLM provider",
         };
+      case "VOICE_FEATURE_NOT_AVAILABLE":
+      case "OPENAI_STT_PROVIDER_NOT_IMPLEMENTED":
+      case "OPENAI_TTS_PROVIDER_NOT_IMPLEMENTED":
+      case "CUSTOM_STT_PROVIDER_NOT_IMPLEMENTED":
+      case "CUSTOM_TTS_PROVIDER_NOT_IMPLEMENTED":
+      case "VOICE_PROVIDER_NOT_CONFIGURED":
+        return {
+          statusCode: 503,
+          code: "VOICE_FEATURE_NOT_AVAILABLE",
+          message: "Voice feature is not available in this environment",
+        };
+      case "VOICE_TRANSCRIPTION_EMPTY":
+        return {
+          statusCode: 422,
+          code: "VOICE_TRANSCRIPTION_EMPTY",
+          message: "Could not transcribe a valid answer from audio",
+        };
       default:
         break;
     }

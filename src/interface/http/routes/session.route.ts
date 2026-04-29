@@ -348,7 +348,7 @@ export const registerSessionRoutes: RegisterRoutes = (app, container) => {
   
       return reply.code(200).send({ code: "OK", data });
     } catch (error) {
-      request.log.error({ error }, "voice turn failed");
+      request.log.error({ err: error }, "voice turn failed");
       const mapped = mapErrorToHttp(error);
       return reply.code(mapped.statusCode).send({ code: mapped.code, message: mapped.message });
     }
