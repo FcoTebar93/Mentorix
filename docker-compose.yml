@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: mentorix
       POSTGRES_DB: mentorix
     ports:
-      - "5433:5432"
+      - "55433:5432"
     volumes:
       - mentorix_pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,6 +16,33 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  whisper-service:
+    build:
+      context: .
+      dockerfile: services/whisper-service/Dockerfile
+    container_name: mentorix-whisper
+    restart: unless-stopped
+    environment:
+      WHISPER_MODEL_SIZE: ${WHISPER_MODEL_SIZE:-small}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+    ports:
+      - "8081:8081"
+
+  piper-service:
+    build:
+      context: .
+      dockerfile: services/piper-service/Dockerfile
+    container_name: mentorix-piper
+    restart: unless-stopped
+    environment:
+      PIPER_MODEL_PATH: ${PIPER_MODEL_PATH:-/models/es_ES-carlfm-x_low.onnx}
+      PIPER_CONFIG_PATH: ${PIPER_CONFIG_PATH:-/models/es_ES-carlfm-x_low.onnx.json}
+      PIPER_BIN: ${PIPER_BIN:-piper}
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./models/piper:/models
 
 volumes:
   mentorix_pg_data:
