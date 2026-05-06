@@ -88,6 +88,46 @@ export type RealtimeInputBody = {
   answerText?: string;
 };
 
+export type RealtimeClientEvent =
+  | {
+      type: "input.start";
+      data: {
+        streamId: string;
+        sessionId: string;
+        questionId: string;
+        locale: string;
+        rubricDimensions: RubricDimension[];
+      };
+    }
+  | {
+      type: "input.audio_chunk";
+      data: {
+        streamId: string;
+        audioBase64Chunk: string;
+      };
+    }
+  | {
+      type: "input.end";
+      data: {
+        streamId: string;
+      };
+    };
+
+export type RealtimeServerEvent =
+  | { event: "ready"; data: { streamId: string } }
+  | { event: "input_started"; data: { type: "input_started"; streamId: string } }
+  | { event: "stt_partial"; data: { type: "stt_partial"; text: string } }
+  | { event: "stt_final"; data: { type: "stt_final"; text: string } }
+  | { event: "llm_token"; data: { type: "llm_token"; token: string } }
+  | { event: "llm_done"; data: { type: "llm_done" } }
+  | { event: "tts_chunk"; data: { type: "tts_chunk"; audioBase64Chunk: string; chunkIndex: number } }
+  | { event: "tts_done"; data: { type: "tts_done" } }
+  | {
+      event: "turn_completed";
+      data: { type: "turn_completed"; isCompleted: boolean; nextQuestionId: string | null; nextQuestionText: string | null };
+    }
+  | { event: "error"; data: { type: "error"; code: string; message: string } };
+
 export type SessionReport = {
   sessionId: string;
   status: string;
