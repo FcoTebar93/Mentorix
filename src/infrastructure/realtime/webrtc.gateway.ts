@@ -38,7 +38,10 @@ export class WebRtcRealtimeGateway {
     peer.ondatachannel = (event) => {
       const channel = event.channel;
       state.dataChannel = channel;
-      channel.onopen = () => this.bumpIdleTimer(input.streamId);
+      channel.onopen = () => {
+        this.bumpIdleTimer(input.streamId);
+        channel.send(JSON.stringify({ event: "ready", data: { streamId: input.streamId } }));
+      };
       channel.onclose = () => this.close(input.streamId);
       channel.onerror = () => this.close(input.streamId);
       channel.onmessage = (messageEvent) => {
