@@ -68,6 +68,18 @@ export interface ILlmServiceFactory {
   ): ILlmService;
 }
 
+export type SttStreamEvent =
+  | { type: "partial"; text: string }
+  | { type: "final"; text: string };
+
+export type LlmStreamEvent =
+  | { type: "token"; token: string }
+  | { type: "done" };
+
+export type TtsStreamEvent =
+  | { type: "chunk"; audioBase64Chunk: string; chunkIndex: number }
+  | { type: "done" };
+
 export type VoiceProvider = "openai" | "custom";
 
 export interface SttInput {
@@ -88,10 +100,34 @@ export interface ITtsService {
   synthesize(input: TtsInput): Promise<{ audioBase64: string }>;
 }
 
+export interface ISttStreamService {
+  transcribeStream(input: SttInput): AsyncIterable<SttStreamEvent>;
+}
+
+export interface ILlmStreamService {
+  streamText(text: string): AsyncIterable<LlmStreamEvent>;
+}
+
+export interface ITtsStreamService {
+  synthesizeStream(input: TtsInput): AsyncIterable<TtsStreamEvent>;
+}
+
 export interface ISttServiceFactory {
   forVoiceConfig(config?: VoiceInterviewConfig): ISttService;
 }
 
 export interface ITtsServiceFactory {
   forVoiceConfig(config?: VoiceInterviewConfig): ITtsService;
+}
+
+export interface ISttStreamServiceFactory {
+  forVoiceConfig(config?: VoiceInterviewConfig): ISttStreamService;
+}
+
+export interface ITtsStreamServiceFactory {
+  forVoiceConfig(config?: VoiceInterviewConfig): ITtsStreamService;
+}
+
+export interface ILlmStreamServiceFactory {
+  forTemplate(config: LlmInterviewConfig): ILlmStreamService;
 }

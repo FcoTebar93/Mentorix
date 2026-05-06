@@ -25,6 +25,14 @@ import { GetSessionReportCase } from "../application/cases/get-session.case.js";
 import { ListSessionReportsCase } from "../application/cases/list-reports.case.js";
 import { CompleteTurnCase } from "../application/cases/complete-turn.case.js";
 import { VoiceTurnCase } from "../application/cases/voice.case.js";
+import { RealtimeVoiceCase } from "../application/cases/realtime-voice.case.js";
+import { RealtimeEventHub } from "./realtime/event-hub.js";
+import {
+  AdapterLlmStreamServiceFactory,
+  AdapterSttStreamServiceFactory,
+  AdapterTtsStreamServiceFactory,
+} from "./realtime/streaming.factory.js";
+import { WebRtcRealtimeGateway } from "./realtime/webrtc.gateway.js";
 
 type BuildTestContainerOptions = {
   llmService?: ILlmService;
@@ -92,6 +100,11 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
   const ttsService = options.ttsService ?? defaultTtsStub;
   const sttFactory = buildSttFactory(sttService);
   const ttsFactory = buildTtsFactory(ttsService);
+  const sttStreamFactory = new AdapterSttStreamServiceFactory(sttFactory);
+  const ttsStreamFactory = new AdapterTtsStreamServiceFactory(ttsFactory);
+  const llmStreamFactory = new AdapterLlmStreamServiceFactory(llmFactory);
+  const realtimeHub = new RealtimeEventHub();
+  const realtimeGateway = new WebRtcRealtimeGateway();
 
   const createTemplate = new CreateTemplateCase(templates, ids, clock);
   const createAccessLink = new CreateAccessLinkCase(links, templates, tokenService, ids, clock);
@@ -116,6 +129,12 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
   const listSessionReports = new ListSessionReportsCase(sessions);
   const completeTurn = new CompleteTurnCase(submitAnswer, evaluateAnswer, completeSession);
   const voiceTurn = new VoiceTurnCase(sttService, ttsService, completeTurn);
+  const realtimeVoice = new RealtimeVoiceCase(
+    sttStreamFactory.forVoiceConfig(),
+    llmStreamFactory.forTemplate({ provider: "mock", model: "mock", temperature: 0.2, maxTokensPerTurn: 128 }),
+    ttsStreamFactory.forVoiceConfig(),
+    completeTurn
+  );
 
   return {
     repositories: { templates, links, sessions },
@@ -129,7 +148,27 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
       ttsService,
       sttFactory,
       ttsFactory,
+      sttStreamFactory,
+      ttsStreamFactory,
+      llmStreamFactory,
+      realtimeHub,
+      realtimeGateway,
     },
-    useCases: { createTemplate, createAccessLink, listAccessLinks, revokeAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn, voiceTurn },
+    useCases: {
+      createTemplate,
+      createAccessLink,
+      listAccessLinks,
+      revokeAccessLink,
+      startSession,
+      submitAnswer,
+      evaluateAnswer,
+      completeSession,
+      listSessions,
+      getSessionReport,
+      listSessionReports,
+      completeTurn,
+      voiceTurn,
+      realtimeVoice,
+    },
   };
 }

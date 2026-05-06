@@ -18,6 +18,14 @@ import { CompleteTurnCase } from "../application/cases/complete-turn.case.js";
 import { EnvSttServiceFactory, EnvTtsServiceFactory } from "./voice/voice.factory.js";
 import { VoiceTurnCase } from "../application/cases/voice.case.js";
 import type { ISttService, ITtsService } from "../application/ports/services.js";
+import { RealtimeEventHub } from "./realtime/event-hub.js";
+import {
+  AdapterLlmStreamServiceFactory,
+  AdapterSttStreamServiceFactory,
+  AdapterTtsStreamServiceFactory,
+} from "./realtime/streaming.factory.js";
+import { RealtimeVoiceCase } from "../application/cases/realtime-voice.case.js";
+import { WebRtcRealtimeGateway } from "./realtime/webrtc.gateway.js";
 
 export function buildContainer() {
   const templates = new PgInterviewTemplateRepository();
@@ -30,6 +38,11 @@ export function buildContainer() {
   const llmFactory = new EnvLlmServiceFactory(process.env);
   const sttFactory = new EnvSttServiceFactory(process.env);
   const ttsFactory = new EnvTtsServiceFactory(process.env);
+  const sttStreamFactory = new AdapterSttStreamServiceFactory(sttFactory);
+  const ttsStreamFactory = new AdapterTtsStreamServiceFactory(ttsFactory);
+  const llmStreamFactory = new AdapterLlmStreamServiceFactory(llmFactory);
+  const realtimeHub = new RealtimeEventHub();
+  const realtimeGateway = new WebRtcRealtimeGateway();
 
   const unavailableSttService: ISttService = {
     async transcribe() {
@@ -79,10 +92,45 @@ export function buildContainer() {
   const listSessionReports = new ListSessionReportsCase(sessions);
   const completeTurn = new CompleteTurnCase(submitAnswer, evaluateAnswer, completeSession);
   const voiceTurn = new VoiceTurnCase(sttService, ttsService, completeTurn);
+  const realtimeVoice = new RealtimeVoiceCase(
+    sttStreamFactory.forVoiceConfig(),
+    llmStreamFactory.forTemplate({ provider: "groq", model: "", temperature: 0.2, maxTokensPerTurn: 700 }),
+    ttsStreamFactory.forVoiceConfig(),
+    completeTurn
+  );
 
   return {
     repositories: { templates, links, sessions },
-    services: { clock, ids, tokenService, llmFactory, sttFactory, ttsFactory, sttService, ttsService },
-    useCases: { createTemplate, createAccessLink, listAccessLinks, revokeAccessLink, startSession, submitAnswer, evaluateAnswer, completeSession, listSessions, getSessionReport, listSessionReports, completeTurn, voiceTurn },
+    services: {
+      clock,
+      ids,
+      tokenService,
+      llmFactory,
+      sttFactory,
+      ttsFactory,
+      sttService,
+      ttsService,
+      sttStreamFactory,
+      ttsStreamFactory,
+      llmStreamFactory,
+      realtimeHub,
+      realtimeGateway,
+    },
+    useCases: {
+      createTemplate,
+      createAccessLink,
+      listAccessLinks,
+      revokeAccessLink,
+      startSession,
+      submitAnswer,
+      evaluateAnswer,
+      completeSession,
+      listSessions,
+      getSessionReport,
+      listSessionReports,
+      completeTurn,
+      voiceTurn,
+      realtimeVoice,
+    },
   };
 }
