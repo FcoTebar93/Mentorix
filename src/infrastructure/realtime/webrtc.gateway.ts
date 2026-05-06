@@ -6,6 +6,7 @@ import {
 
 type RealtimeSignalInput = {
   streamId: string;
+  sessionId: string;
   sdpOffer: string;
   onInputMessage: (streamId: string, message: unknown) => Promise<void>;
 };
@@ -17,6 +18,7 @@ type RealtimeSignalResult = {
 };
 
 type SessionState = {
+  sessionId: string;
   peer: RTCPeerConnection;
   dataChannel: RTCDataChannel | null;
   idleTimer: ReturnType<typeof setTimeout> | null;
@@ -25,13 +27,14 @@ type SessionState = {
 export class WebRtcRealtimeGateway {
   private readonly sessions = new Map<string, SessionState>();
   private readonly idleMs = Number(process.env.REALTIME_IDLE_TIMEOUT_MS ?? 90_000);
+  private readonly iceServers = parseIceServers(process.env.REALTIME_ICE_SERVERS);
 
   async negotiate(input: RealtimeSignalInput): Promise<RealtimeSignalResult> {
     this.close(input.streamId);
     const peer = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      iceServers: this.iceServers,
     });
-    const state: SessionState = { peer, dataChannel: null, idleTimer: null };
+    const state: SessionState = { sessionId: input.sessionId, peer, dataChannel: null, idleTimer: null };
     this.sessions.set(input.streamId, state);
     this.bumpIdleTimer(input.streamId);
 
@@ -76,7 +79,7 @@ export class WebRtcRealtimeGateway {
     return {
       streamId: input.streamId,
       sdpAnswer: local.sdp,
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      iceServers: this.iceServers,
     };
   }
 
@@ -112,6 +115,10 @@ export class WebRtcRealtimeGateway {
     return this.sessions.has(streamId);
   }
 
+  matchesSession(streamId: string, sessionId: string): boolean {
+    return this.sessions.get(streamId)?.sessionId === sessionId;
+  }
+
   private bumpIdleTimer(streamId: string): void {
     const state = this.sessions.get(streamId);
     if (!state) return;
@@ -138,4 +145,16 @@ export class WebRtcRealtimeGateway {
       peer.addEventListener("icegatheringstatechange", onChange);
     });
   }
+}
+
+function parseIceServers(rawValue: string | undefined): Array<{ urls: string }> {
+  if (!rawValue?.trim()) {
+    return [{ urls: "stun:stun.l.google.com:19302" }];
+  }
+  const parsed = rawValue
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((urls) => ({ urls }));
+  return parsed.length > 0 ? parsed : [{ urls: "stun:stun.l.google.com:19302" }];
 }

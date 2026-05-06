@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { interviewApi } from "../lib/api/interview";
 import { DEFAULT_RUBRIC_DIMENSIONS } from "../lib/interview/rubric";
+import type { RealtimeClientEvent, RealtimeServerEvent } from "../lib/interview/types";
 
 type Props = {
   sessionId: string;
@@ -23,6 +24,7 @@ export function TurnComposer({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [streamingAnswer, setStreamingAnswer] = useState<string>("");
+  const [realtimePhase, setRealtimePhase] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -35,12 +37,26 @@ export function TurnComposer({
   const ENABLE_REALTIME_VOICE =
     ((import.meta as { env?: Record<string, string | undefined> }).env?.VITE_VOICE_STREAMING_ENABLED ?? "true") !==
     "false";
+  const ENABLE_REALTIME_CHUNKED_AUDIO =
+    ((import.meta as { env?: Record<string, string | undefined> }).env?.VITE_REALTIME_CHUNKED_AUDIO_ENABLED ?? "true") !==
+    "false";
 
   const canSubmit = useMemo(
     () => !!questionId && !!answerAudioBase64 && !loading && !isRecording,
     [questionId, answerAudioBase64, loading, isRecording]
   );
-  const statusText = loading ? "Evaluando..." : isRecording ? "Pensando..." : "Listo para responder";
+  const statusText =
+    realtimePhase === "listening"
+      ? "Escuchando..."
+      : realtimePhase === "thinking"
+        ? "Pensando..."
+        : realtimePhase === "speaking"
+          ? "Hablando..."
+          : loading
+            ? "Evaluando..."
+            : isRecording
+              ? "Grabando..."
+              : "Listo para responder";
 
   useEffect(() => {
     return () => {
@@ -73,6 +89,7 @@ export function TurnComposer({
 
       recorder.start();
       setIsRecording(true);
+      setRealtimePhase("listening");
       setAnswerAudioBase64(null);
       setTranscript(null);
     } catch (err) {
@@ -82,6 +99,7 @@ export function TurnComposer({
 
   function stopRecording() {
     mediaRecorderRef.current?.stop();
+    setRealtimePhase("idle");
   }
 
   async function onSubmit() {
@@ -142,7 +160,9 @@ export function TurnComposer({
     const streamId = crypto.randomUUID();
     streamIdRef.current = streamId;
 
-    const pc = new RTCPeerConnection();
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
     peerConnectionRef.current = pc;
     const channel = pc.createDataChannel("mentorix-realtime");
     dataChannelRef.current = channel;
@@ -152,26 +172,63 @@ export function TurnComposer({
     await pc.setLocalDescription(offer);
     await waitIceGatheringComplete(pc);
 
-    const negotiation = await interviewApi.negotiateRealtime(sessionId, {
+    const finalNegotiation = await interviewApi.negotiateRealtime(sessionId, {
       streamId,
       sdpOffer: offer.sdp ?? "browser-offer",
     });
-    await pc.setRemoteDescription({ type: "answer", sdp: negotiation.data.sdpAnswer });
+    await pc.setRemoteDescription({ type: "answer", sdp: finalNegotiation.data.sdpAnswer });
 
     await waitDataChannelOpen(channel);
-    channel.send(
-      JSON.stringify({
-        type: "input.submit",
+    await waitRealtimeReady(channel, streamId);
+    setRealtimePhase("thinking");
+    if (ENABLE_REALTIME_CHUNKED_AUDIO) {
+      sendRealtimeMessage(channel, {
+        type: "input.start",
         data: {
           streamId,
           sessionId,
           questionId,
-          answerAudioBase64: audioPayload,
           locale: "es-ES",
           rubricDimensions: DEFAULT_RUBRIC_DIMENSIONS,
         },
-      })
-    );
+      });
+      const chunkSize = 12_000;
+      for (let i = 0; i < audioPayload.length; i += chunkSize) {
+        sendRealtimeMessage(channel, {
+          type: "input.audio_chunk",
+          data: {
+            streamId,
+            audioBase64Chunk: audioPayload.slice(i, i + chunkSize),
+          },
+        });
+      }
+      sendRealtimeMessage(channel, {
+        type: "input.end",
+        data: { streamId },
+      });
+      return;
+    }
+    sendRealtimeMessage(channel, {
+      type: "input.start",
+      data: {
+        streamId,
+        sessionId,
+        questionId,
+        locale: "es-ES",
+        rubricDimensions: DEFAULT_RUBRIC_DIMENSIONS,
+      },
+    });
+    sendRealtimeMessage(channel, {
+      type: "input.audio_chunk",
+      data: {
+        streamId,
+        audioBase64Chunk: audioPayload,
+      },
+    });
+    sendRealtimeMessage(channel, {
+      type: "input.end",
+      data: { streamId },
+    });
   }
 
   function closeEventSource() {
@@ -199,13 +256,14 @@ export function TurnComposer({
       peerConnectionRef.current = null;
     }
     streamIdRef.current = null;
+    setRealtimePhase("idle");
   }
 
   function attachDataChannelListeners(channel: RTCDataChannel) {
     channel.onmessage = (event) => {
-      const message = parseJson<{ event?: string; data?: any }>(String(event.data ?? ""));
+      const message = parseJson<RealtimeServerEvent>(String(event.data ?? ""));
       if (!message?.event) return;
-      const data = message.data;
+      const data = message.data as any;
 
       if (message.event === "stt_partial" || message.event === "stt_final") {
         setTranscript(data?.text ?? null);
@@ -216,6 +274,7 @@ export function TurnComposer({
         return;
       }
       if (message.event === "tts_chunk") {
+        setRealtimePhase("speaking");
         if (data?.audioBase64Chunk) ttsChunksRef.current.push(data.audioBase64Chunk);
         return;
       }
@@ -311,15 +370,6 @@ export function TurnComposer({
   );
 }
 
-function parseEvent<T>(event: Event): T | null {
-  const message = event as MessageEvent<string>;
-  try {
-    return JSON.parse(message.data) as T;
-  } catch {
-    return null;
-  }
-}
-
 function parseJson<T>(raw: string): T | null {
   try {
     return JSON.parse(raw) as T;
@@ -361,10 +411,41 @@ async function waitDataChannelOpen(channel: RTCDataChannel): Promise<void> {
   });
 }
 
+async function waitRealtimeReady(channel: RTCDataChannel, expectedStreamId: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("REALTIME_READY_TIMEOUT"));
+    }, 5000);
+    const onMessage = (event: MessageEvent<string>) => {
+      const payload = parseJson<{ event?: string; data?: { streamId?: string } }>(String(event.data ?? ""));
+      if (payload?.event !== "ready") return;
+      if (payload.data?.streamId !== expectedStreamId) return;
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error("REALTIME_READY_FAILED"));
+    };
+    const cleanup = () => {
+      clearTimeout(timeout);
+      channel.removeEventListener("message", onMessage as EventListener);
+      channel.removeEventListener("error", onError);
+    };
+    channel.addEventListener("message", onMessage as EventListener);
+    channel.addEventListener("error", onError);
+  });
+}
+
 async function blobToBase64(blob: Blob): Promise<string> {
   const buffer = await blob.arrayBuffer();
   let binary = "";
   const bytes = new Uint8Array(buffer);
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary);
+}
+
+function sendRealtimeMessage(channel: RTCDataChannel, message: RealtimeClientEvent): void {
+  channel.send(JSON.stringify(message));
 }

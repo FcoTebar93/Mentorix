@@ -88,4 +88,35 @@ describe("HTTP realtime routes", { timeout: 15000 }, () => {
       await app.close();
     }
   });
+
+  it("rejects stream access from a different session id", async () => {
+    const app = buildHttpTestServer();
+    try {
+      const pc = new RTCPeerConnection();
+      pc.createDataChannel("mentorix-realtime");
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      const negotiate = await app.inject({
+        method: "POST",
+        url: "/v1/realtime/sessions/s1/negotiate",
+        headers: auth("u1"),
+        payload: {
+          streamId: "stream-cross-session",
+          sdpOffer: offer.sdp,
+        },
+      });
+      expect(negotiate.statusCode).toBe(200);
+
+      const events = await app.inject({
+        method: "GET",
+        url: "/v1/realtime/sessions/s2/events?streamId=stream-cross-session",
+        headers: auth("u1"),
+      });
+      expect(events.statusCode).toBe(404);
+      expect(events.json().code).toBe("REALTIME_STREAM_NOT_FOUND");
+    } finally {
+      await app.close();
+    }
+  });
 });
