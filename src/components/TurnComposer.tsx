@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { interviewApi } from "../lib/api/interview";
 import { DEFAULT_RUBRIC_DIMENSIONS } from "../lib/interview/rubric";
 
@@ -41,6 +41,13 @@ export function TurnComposer({
     [questionId, answerAudioBase64, loading, isRecording]
   );
   const statusText = loading ? "Evaluando..." : isRecording ? "Pensando..." : "Listo para responder";
+
+  useEffect(() => {
+    return () => {
+      closeRealtimeConnection();
+      closeEventSource();
+    };
+  }, []);
 
   async function startRecording() {
     setErrorMsg(null);
@@ -129,6 +136,7 @@ export function TurnComposer({
   }
 
   async function submitRealtime(audioPayload: string) {
+    closeRealtimeConnection();
     closeEventSource();
     ttsChunksRef.current = [];
     const streamId = crypto.randomUUID();
@@ -173,6 +181,26 @@ export function TurnComposer({
     }
   }
 
+  function closeRealtimeConnection() {
+    if (dataChannelRef.current) {
+      try {
+        dataChannelRef.current.close();
+      } catch {
+        // no-op
+      }
+      dataChannelRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      try {
+        peerConnectionRef.current.close();
+      } catch {
+        // no-op
+      }
+      peerConnectionRef.current = null;
+    }
+    streamIdRef.current = null;
+  }
+
   function attachDataChannelListeners(channel: RTCDataChannel) {
     channel.onmessage = (event) => {
       const message = parseJson<{ event?: string; data?: any }>(String(event.data ?? ""));
@@ -199,6 +227,7 @@ export function TurnComposer({
         return;
       }
       if (message.event === "turn_completed") {
+        closeRealtimeConnection();
         if (data?.isCompleted) {
           onCompleted();
           return;
@@ -211,6 +240,7 @@ export function TurnComposer({
         return;
       }
       if (message.event === "error") {
+        closeRealtimeConnection();
         if (data?.message) setErrorMsg(data.message);
       }
     };
