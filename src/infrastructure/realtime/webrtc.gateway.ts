@@ -1,8 +1,6 @@
-import {
-  RTCDataChannel,
-  RTCPeerConnection,
-  RTCSessionDescription,
-} from "@roamhq/wrtc";
+import wrtc from "@roamhq/wrtc";
+
+const { RTCPeerConnection, RTCSessionDescription } = wrtc;
 
 type RealtimeSignalInput = {
   streamId: string;
@@ -19,7 +17,7 @@ type RealtimeSignalResult = {
 
 type SessionState = {
   sessionId: string;
-  peer: RTCPeerConnection;
+  peer: InstanceType<typeof RTCPeerConnection>;
   dataChannel: RTCDataChannel | null;
   idleTimer: ReturnType<typeof setTimeout> | null;
 };
@@ -128,7 +126,7 @@ export class WebRtcRealtimeGateway {
     }, this.idleMs);
   }
 
-  private async waitIceGatheringComplete(peer: RTCPeerConnection): Promise<void> {
+  private async waitIceGatheringComplete(peer: InstanceType<typeof RTCPeerConnection>): Promise<void> {
     if (peer.iceGatheringState === "complete") return;
     await new Promise<void>((resolve) => {
       const timeout = setTimeout(() => {
