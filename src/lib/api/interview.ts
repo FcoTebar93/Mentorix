@@ -8,6 +8,9 @@ import type {
   StartFromLinkBody,
   VoiceTurnBody,
   VoiceTurnResult,
+  RealtimeNegotiateBody,
+  RealtimeNegotiateResult,
+  RealtimeInputBody,
 } from "../interview/types.js";
 import type { SessionListItem, ListSessionsQuery } from "../interview/types.js";
 
@@ -49,6 +52,32 @@ export const interviewApi = {
         headers: AUTH_HEADER,
         body: JSON.stringify(body),
       }
+    );
+  },
+  negotiateRealtime(sessionId: string, body: RealtimeNegotiateBody) {
+    return apiRequest<ApiOk<RealtimeNegotiateResult>>(
+      `${API_BASE_URL}/v1/realtime/sessions/${sessionId}/negotiate`,
+      {
+        method: "POST",
+        headers: AUTH_HEADER,
+        body: JSON.stringify(body),
+      }
+    );
+  },
+  submitRealtimeInput(sessionId: string, body: RealtimeInputBody) {
+    return apiRequest<ApiOk<{ accepted: boolean; streamId: string }>>(
+      `${API_BASE_URL}/v1/realtime/sessions/${sessionId}/input`,
+      {
+        method: "POST",
+        headers: AUTH_HEADER,
+        body: JSON.stringify(body),
+      }
+    );
+  },
+  createRealtimeEventSource(sessionId: string, streamId: string) {
+    return new EventSource(
+      `${API_BASE_URL}/v1/realtime/sessions/${sessionId}/events?streamId=${encodeURIComponent(streamId)}`,
+      { withCredentials: false }
     );
   },
 

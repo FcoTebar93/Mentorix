@@ -68,6 +68,26 @@ export type VoiceTurnResult = {
   nextQuestionAudioBase64: string | null;
 };
 
+export type RealtimeNegotiateBody = {
+  streamId: string;
+  sdpOffer: string;
+};
+
+export type RealtimeNegotiateResult = {
+  streamId: string;
+  sdpAnswer: string;
+  iceServers: Array<{ urls: string }>;
+};
+
+export type RealtimeInputBody = {
+  streamId: string;
+  questionId: string;
+  locale: string;
+  rubricDimensions: RubricDimension[];
+  answerAudioBase64?: string;
+  answerText?: string;
+};
+
 export type SessionReport = {
   sessionId: string;
   status: string;
