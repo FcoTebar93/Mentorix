@@ -19,23 +19,30 @@ type RealtimeSignalResult = {
 type SessionState = {
   peer: RTCPeerConnection;
   dataChannel: RTCDataChannel | null;
+  idleTimer: ReturnType<typeof setTimeout> | null;
 };
 
 export class WebRtcRealtimeGateway {
   private readonly sessions = new Map<string, SessionState>();
+  private readonly idleMs = Number(process.env.REALTIME_IDLE_TIMEOUT_MS ?? 90_000);
 
   async negotiate(input: RealtimeSignalInput): Promise<RealtimeSignalResult> {
     this.close(input.streamId);
     const peer = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
-    const state: SessionState = { peer, dataChannel: null };
+    const state: SessionState = { peer, dataChannel: null, idleTimer: null };
     this.sessions.set(input.streamId, state);
+    this.bumpIdleTimer(input.streamId);
 
     peer.ondatachannel = (event) => {
       const channel = event.channel;
       state.dataChannel = channel;
+      channel.onopen = () => this.bumpIdleTimer(input.streamId);
+      channel.onclose = () => this.close(input.streamId);
+      channel.onerror = () => this.close(input.streamId);
       channel.onmessage = (messageEvent) => {
+        this.bumpIdleTimer(input.streamId);
         const text = String(messageEvent.data ?? "");
         let payload: unknown = text;
         try {
@@ -74,12 +81,17 @@ export class WebRtcRealtimeGateway {
     const state = this.sessions.get(streamId);
     const channel = state?.dataChannel;
     if (!channel || channel.readyState !== "open") return;
+    this.bumpIdleTimer(streamId);
     channel.send(JSON.stringify({ event, data }));
   }
 
   close(streamId: string): void {
     const state = this.sessions.get(streamId);
     if (!state) return;
+    if (state.idleTimer) {
+      clearTimeout(state.idleTimer);
+      state.idleTimer = null;
+    }
     try {
       state.dataChannel?.close();
     } catch {
@@ -95,6 +107,15 @@ export class WebRtcRealtimeGateway {
 
   has(streamId: string): boolean {
     return this.sessions.has(streamId);
+  }
+
+  private bumpIdleTimer(streamId: string): void {
+    const state = this.sessions.get(streamId);
+    if (!state) return;
+    if (state.idleTimer) clearTimeout(state.idleTimer);
+    state.idleTimer = setTimeout(() => {
+      this.close(streamId);
+    }, this.idleMs);
   }
 
   private async waitIceGatheringComplete(peer: RTCPeerConnection): Promise<void> {

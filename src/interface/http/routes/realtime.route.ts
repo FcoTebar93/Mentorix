@@ -57,6 +57,7 @@ export const registerRealtimeRoutes: RegisterRoutes = (app, container) => {
             })) {
               container.services.realtimeGateway.send(id, event.type, event);
             }
+            container.services.realtimeGateway.close(id);
           } catch (error) {
             const mapped = mapErrorToHttp(error);
             container.services.realtimeGateway.send(id, "error", {
@@ -64,6 +65,7 @@ export const registerRealtimeRoutes: RegisterRoutes = (app, container) => {
               code: mapped.code,
               message: mapped.message,
             });
+            container.services.realtimeGateway.close(id);
           }
         },
       });
