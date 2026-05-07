@@ -68,6 +68,16 @@ export type VoiceTurnResult = {
   nextQuestionAudioBase64: string | null;
 };
 
+export type TtsQuestionBody = {
+  sessionId: string;
+  questionId: string;
+};
+
+export type TtsQuestionResult = {
+  audioBase64: string;
+  locale: string;
+};
+
 export type RealtimeNegotiateBody = {
   streamId: string;
   sdpOffer: string;
