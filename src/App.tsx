@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { StartInterviewForm } from "./components/StartInterviewForm";
-import { TurnComposer } from "./components/TurnComposer";
+import { TurnPanel } from "./components/interview/TurnPanel";
 import { ReportView } from "./components/ReportView";
 import { SessionsPage } from "./components/interview/SessionsPage";
 import { SessionLoader } from "./components/interview/SessionLoader";
@@ -13,7 +13,7 @@ import { TemplateLinksPage } from "./modules/templates/TemplateLinksPage";
 import { templatesApi } from "./modules/templates/templates.api";
 import type { CreateTemplateInput, InterviewTemplate } from "./modules/templates/types";
 type ViewState =
-  | { step: "session"; sessionId: string; questionId?: string }
+  | { step: "session"; sessionId: string; questionId?: string; questionText?: string }
   | { step: "report"; sessionId: string }
   | { step: "sessions" }
   | { step: "templates:list" }
@@ -24,7 +24,7 @@ type ViewState =
 
 type CandidateState =
   | { step: "start" }
-  | { step: "session"; sessionId: string; questionId?: string }
+  | { step: "session"; sessionId: string; questionId?: string; questionText?: string }
   | { step: "report"; sessionId: string };
 
 function getCandidateTokenFromLocation(): string | null {
@@ -85,8 +85,13 @@ export default function App() {
         <StartInterviewForm
           presetToken={candidateToken ?? ""}
           showTokenField={false}
-          onStarted={(sessionId: string, firstQuestionId: string) =>
-            setCandidateState({ step: "session", sessionId, questionId: firstQuestionId })
+          onStarted={(sessionId: string, firstQuestionId: string, firstQuestionText: string) =>
+            setCandidateState({
+              step: "session",
+              sessionId,
+              questionId: firstQuestionId,
+              questionText: firstQuestionText,
+            })
           }
         />
       );
@@ -101,9 +106,10 @@ export default function App() {
         );
       } else {
         content = (
-          <TurnComposer
+          <TurnPanel
             sessionId={candidateState.sessionId}
             initialQuestionId={candidateState.questionId}
+            initialQuestionText={candidateState.questionText}
             onCompleted={() => setCandidateState({ step: "report", sessionId: candidateState.sessionId })}
           />
         );
@@ -156,9 +162,10 @@ export default function App() {
           <button type="button" onClick={() => setState({ step: "sessions" })}>
             Volver
           </button>
-          <TurnComposer
+          <TurnPanel
             sessionId={state.sessionId}
             initialQuestionId={state.questionId}
+            initialQuestionText={state.questionText}
             onCompleted={() => setState({ step: "report", sessionId: state.sessionId })}
           />
         </section>
