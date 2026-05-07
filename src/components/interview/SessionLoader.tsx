@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { interviewApi } from "../../lib/api/interview";
-import { TurnComposer } from "../TurnComposer";
+import { TurnPanel } from "./TurnPanel";
 
 type Props = {
   sessionId: string;
@@ -11,7 +11,7 @@ type Props = {
 export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [questionId, setQuestionId] = useState<string | null>(null);
+  const [question, setQuestion] = useState<{ id: string; text: string } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -33,7 +33,10 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
           return;
         }
 
-        setQuestionId(currentQuestion.id);
+        setQuestion({
+          id: currentQuestion.id,
+          text: currentQuestion.text ?? "Pregunta actual",
+        });
       } catch (err) {
         if (!active) return;
         setErrorMsg(err instanceof Error ? err.message : "No se pudo cargar la sesión.");
@@ -66,14 +69,15 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
     );
   }
 
-  if (!questionId) return null;
+  if (!question) return null;
 
   return (
     <section className="stack-md">
       <button type="button" onClick={onBack}>Volver</button>
-      <TurnComposer
+      <TurnPanel
         sessionId={sessionId}
-        initialQuestionId={questionId}
+        initialQuestionId={question.id}
+        initialQuestionText={question.text}
         onCompleted={onCompleted}
       />
     </section>
