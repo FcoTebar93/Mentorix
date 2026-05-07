@@ -888,6 +888,27 @@ button:disabled {
   background: var(--color-gunmetal);
 }
 
+.turn-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-12);
+}
+
+.turn-progress-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: var(--text-body-sm);
+  font-weight: 510;
+  border-radius: var(--radius-pill);
+  background: var(--color-deep-slate);
+  border: 1px solid var(--color-charcoal-grey);
+  color: var(--color-light-steel);
+  letter-spacing: -0.1px;
+}
+
 .is-pulsing {
   animation: pulse-fade 1.5s ease-in-out infinite;
 }
