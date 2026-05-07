@@ -4,9 +4,21 @@ import type { SessionReport } from "../lib/interview/types";
 
 type Props = {
   sessionId: string;
+  celebrate?: boolean;
 };
 
+type Phase = "celebrating" | "analyzing" | "ready";
+
 type ScoreBucket = "high" | "mid" | "low" | "muted";
+
+const MIN_CELEBRATION_MS = 1500;
+const ANALYZING_HINTS = [
+  "Evaluando dimensiones técnicas...",
+  "Detectando fortalezas...",
+  "Identificando áreas de mejora...",
+  "Generando recomendación final...",
+];
+const ANALYZING_HINT_INTERVAL_MS = 1500;
 
 function formatDate(value?: string): string {
   if (!value) return "—";
@@ -47,18 +59,75 @@ function classifyRecommendation(text: string, score: number | null): {
   return { className: "is-review", icon: "•", heading: "Recomendación" };
 }
 
-export function ReportView({ sessionId }: Props) {
+function ClosingCelebration() {
+  return (
+    <section className="closing-stage" aria-live="polite">
+      <div className="closing-check" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="80" height="80">
+          <circle
+            className="closing-check-circle"
+            cx="32"
+            cy="32"
+            r="28"
+            fill="none"
+            strokeWidth="4"
+          />
+          <path
+            className="closing-check-mark"
+            d="M19 33 L29 43 L46 23"
+            fill="none"
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+      <h2 className="closing-title">¡Entrevista completada!</h2>
+      <p className="closing-subtitle">Gracias por participar.</p>
+    </section>
+  );
+}
+
+function AnalyzingIndicator() {
+  const [hintIndex, setHintIndex] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setHintIndex((prev) => (prev + 1) % ANALYZING_HINTS.length);
+    }, ANALYZING_HINT_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <section className="closing-stage" aria-live="polite">
+      <div className="analyzing-dots" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+      <h2 className="closing-title">Analizando tus respuestas</h2>
+      <p className="closing-subtitle">{ANALYZING_HINTS[hintIndex]}</p>
+    </section>
+  );
+}
+
+export function ReportView({ sessionId, celebrate = false }: Props) {
   const [report, setReport] = useState<SessionReport | null>(null);
-  const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [minTimeReached, setMinTimeReached] = useState(!celebrate);
+
+  useEffect(() => {
+    if (!celebrate) return;
+    const timer = setTimeout(() => setMinTimeReached(true), MIN_CELEBRATION_MS);
+    return () => clearTimeout(timer);
+  }, [celebrate]);
 
   useEffect(() => {
     let active = true;
 
     async function load() {
-      setLoading(true);
       setErrorMsg(null);
-
+      setReport(null);
       try {
         const res = await interviewApi.getReport(sessionId);
         if (!active) return;
@@ -66,12 +135,10 @@ export function ReportView({ sessionId }: Props) {
       } catch (err) {
         if (!active) return;
         setErrorMsg(err instanceof Error ? err.message : "No se pudo cargar el reporte");
-      } finally {
-        if (active) setLoading(false);
       }
     }
 
-    load();
+    void load();
     return () => {
       active = false;
     };
@@ -82,16 +149,21 @@ export function ReportView({ sessionId }: Props) {
     return Object.entries(report.dimensionAverages).sort((a, b) => b[1] - a[1]);
   }, [report]);
 
-  if (loading) return <p>Cargando reporte...</p>;
+  const phase: Phase = !minTimeReached ? "celebrating" : !report ? "analyzing" : "ready";
+
   if (errorMsg) return <p className="error-text">{errorMsg}</p>;
-  if (!report) return <p>No hay reporte.</p>;
+  if (phase === "celebrating") return <ClosingCelebration />;
+  if (phase === "analyzing") return <AnalyzingIndicator />;
+  if (!report) return null;
 
   const overallBucket = bucketForScore(report.overallScore);
   const overallText = report.overallScore !== null ? String(report.overallScore) : "—";
   const recommendationStyle = classifyRecommendation(report.recommendation, report.overallScore);
 
+  const animatedClass = celebrate ? "report-reveal" : "";
+
   return (
-    <section className="stack-lg">
+    <section className={`stack-lg ${animatedClass}`}>
       <h2>Reporte final</h2>
 
       <section className={`report-hero`}>

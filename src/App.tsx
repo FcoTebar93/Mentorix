@@ -14,7 +14,7 @@ import { templatesApi } from "./modules/templates/templates.api";
 import type { CreateTemplateInput, InterviewTemplate } from "./modules/templates/types";
 type ViewState =
   | { step: "session"; sessionId: string; questionId?: string; questionText?: string }
-  | { step: "report"; sessionId: string }
+  | { step: "report"; sessionId: string; celebrate?: boolean }
   | { step: "sessions" }
   | { step: "templates:list" }
   | { step: "templates:new" }
@@ -25,7 +25,7 @@ type ViewState =
 type CandidateState =
   | { step: "start" }
   | { step: "session"; sessionId: string; questionId?: string; questionText?: string }
-  | { step: "report"; sessionId: string };
+  | { step: "report"; sessionId: string; celebrate?: boolean };
 
 function getCandidateTokenFromLocation(): string | null {
   if (typeof window === "undefined") return null;
@@ -101,7 +101,13 @@ export default function App() {
           <SessionLoader
             sessionId={candidateState.sessionId}
             onBack={() => setCandidateState({ step: "start" })}
-            onCompleted={() => setCandidateState({ step: "report", sessionId: candidateState.sessionId })}
+            onCompleted={() =>
+              setCandidateState({
+                step: "report",
+                sessionId: candidateState.sessionId,
+                celebrate: true,
+              })
+            }
           />
         );
       } else {
@@ -110,12 +116,18 @@ export default function App() {
             sessionId={candidateState.sessionId}
             initialQuestionId={candidateState.questionId}
             initialQuestionText={candidateState.questionText}
-            onCompleted={() => setCandidateState({ step: "report", sessionId: candidateState.sessionId })}
+            onCompleted={() =>
+              setCandidateState({
+                step: "report",
+                sessionId: candidateState.sessionId,
+                celebrate: true,
+              })
+            }
           />
         );
       }
     } else {
-      content = <ReportView sessionId={candidateState.sessionId} />;
+      content = <ReportView sessionId={candidateState.sessionId} celebrate={candidateState.celebrate} />;
     }
 
     return (
@@ -153,7 +165,7 @@ export default function App() {
         <SessionLoader
           sessionId={state.sessionId}
           onBack={() => setState({ step: "sessions" })}
-          onCompleted={() => setState({ step: "report", sessionId: state.sessionId })}
+          onCompleted={() => setState({ step: "report", sessionId: state.sessionId, celebrate: true })}
         />
       );
     } else {
@@ -166,13 +178,15 @@ export default function App() {
             sessionId={state.sessionId}
             initialQuestionId={state.questionId}
             initialQuestionText={state.questionText}
-            onCompleted={() => setState({ step: "report", sessionId: state.sessionId })}
+            onCompleted={() =>
+              setState({ step: "report", sessionId: state.sessionId, celebrate: true })
+            }
           />
         </section>
       );
     }
   } else if (state.step === "report") {
-    content = <ReportView sessionId={state.sessionId} />;
+    content = <ReportView sessionId={state.sessionId} celebrate={state.celebrate} />;
   } else if (state.step === "templates:list") {
     content = (
       <TemplateListPage
