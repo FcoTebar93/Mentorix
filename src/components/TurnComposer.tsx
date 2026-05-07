@@ -8,6 +8,7 @@ type Props = {
   initialQuestionId: string;
   initialQuestionText?: string;
   onCompleted: () => void;
+  onAdvance?: (next: { questionId: string; questionText: string }) => void;
 };
 
 export function TurnComposer({
@@ -15,6 +16,7 @@ export function TurnComposer({
   initialQuestionId,
   initialQuestionText,
   onCompleted,
+  onAdvance,
 }: Props) {
   const [questionId, setQuestionId] = useState(initialQuestionId);
   const [questionText, setQuestionText] = useState(initialQuestionText ?? "Pregunta actual");
@@ -141,9 +143,12 @@ export function TurnComposer({
     }
 
     if (data.nextQuestion?.id) {
-      setQuestionId(data.nextQuestion.id);
-      setQuestionText(data.nextQuestion.text ?? "Siguiente pregunta");
+      const nextId = data.nextQuestion.id;
+      const nextText = data.nextQuestion.text ?? "Siguiente pregunta";
+      setQuestionId(nextId);
+      setQuestionText(nextText);
       setAnswerAudioBase64(null);
+      onAdvance?.({ questionId: nextId, questionText: nextText });
       if (res.data.nextQuestionAudioBase64) {
         const audio = new Audio(`data:audio/mpeg;base64,${res.data.nextQuestionAudioBase64}`);
         void audio.play().catch(() => undefined);
@@ -292,9 +297,12 @@ export function TurnComposer({
           return;
         }
         if (data?.nextQuestionId) {
-          setQuestionId(data.nextQuestionId);
-          setQuestionText(data.nextQuestionText ?? "Siguiente pregunta");
+          const nextId = data.nextQuestionId as string;
+          const nextText = (data.nextQuestionText as string | null) ?? "Siguiente pregunta";
+          setQuestionId(nextId);
+          setQuestionText(nextText);
           setAnswerAudioBase64(null);
+          onAdvance?.({ questionId: nextId, questionText: nextText });
         }
         return;
       }

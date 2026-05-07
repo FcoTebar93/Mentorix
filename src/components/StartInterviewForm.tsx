@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { interviewApi } from "../lib/api/interview";
 
 type Props = {
-  onStarted: (sessionId: string, firstQuestionId: string) => void;
+  onStarted: (sessionId: string, firstQuestionId: string, firstQuestionText: string) => void;
   presetToken?: string;
   showTokenField?: boolean;
 };
@@ -35,12 +35,12 @@ export function StartInterviewForm({ onStarted, presetToken, showTokenField = tr
       });
 
       const session = res.data;
-      const firstQuestionId = session.questions?.[0]?.id;
-      if (!firstQuestionId) {
+      const firstQuestion = session.questions?.[0];
+      if (!firstQuestion?.id) {
         throw new Error("La sesión no trae primera pregunta");
       }
 
-      onStarted(session.id, firstQuestionId);
+      onStarted(session.id, firstQuestion.id, firstQuestion.text ?? "Pregunta actual");
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Error iniciando entrevista");
     } finally {
