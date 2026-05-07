@@ -60,9 +60,12 @@ export class RealtimeVoiceCase {
     });
 
     const nextText = result.nextQuestion?.text ?? null;
+    const nextIsFixed = result.nextQuestion?.source === "fixed";
     if (nextText) {
-      for await (const tokenEvent of this.llmStream.streamText(nextText)) {
-        yield this.mapLlmEvent(tokenEvent);
+      if (!nextIsFixed) {
+        for await (const tokenEvent of this.llmStream.streamText(nextText)) {
+          yield this.mapLlmEvent(tokenEvent);
+        }
       }
       for await (const audioEvent of this.ttsStream.synthesizeStream({ text: nextText, locale: input.locale })) {
         yield this.mapTtsEvent(audioEvent);
