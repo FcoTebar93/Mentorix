@@ -645,6 +645,54 @@ button:disabled {
   letter-spacing: 0.4px;
 }
 
+/* ===== Error banner ===== */
+
+.error-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-12);
+  padding: var(--spacing-16);
+  background: color-mix(in srgb, var(--color-warning-red) 8%, var(--color-deep-slate));
+  border: 1px solid color-mix(in srgb, var(--color-warning-red) 40%, transparent);
+  border-left: 4px solid var(--color-warning-red);
+  border-radius: var(--radius-cards);
+}
+
+.error-banner-body {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 240px;
+}
+
+.error-banner-title {
+  font-size: var(--text-subheading);
+  font-weight: 510;
+  color: var(--color-porcelain);
+  letter-spacing: -0.15px;
+}
+
+.error-banner-message {
+  margin: 0;
+  color: var(--color-light-steel);
+  line-height: 1.45;
+}
+
+.error-banner-code {
+  font-family: var(--font-berkeley-mono);
+  font-size: var(--text-caption);
+  color: var(--color-storm-cloud);
+  letter-spacing: 0.4px;
+}
+
+.error-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-8);
+  align-self: center;
+}
+
 /* ===== Closing animation ===== */
 
 .closing-stage {

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { interviewApi } from "../lib/api/interview";
+import { humanizeError, type HumanError } from "../lib/errors/humanize";
+import { ErrorBanner } from "./ErrorBanner";
 
 type Props = {
   onStarted: (sessionId: string, firstQuestionId: string, firstQuestionText: string) => void;
@@ -12,18 +14,19 @@ export function StartInterviewForm({ onStarted, presetToken, showTokenField = tr
   const [rawToken, setRawToken] = useState(presetToken ?? "");
   const [guestAlias, setGuestAlias] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [validationMsg, setValidationMsg] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<HumanError | null>(null);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setErrorMsg(null);
+  async function submit() {
+    setValidationMsg(null);
+    setErrorState(null);
 
     if (!rawToken.trim()) {
-      setErrorMsg("El token es obligatorio");
+      setValidationMsg("El token es obligatorio");
       return;
     }
     if (!guestAlias.trim()) {
-      setErrorMsg("El nombre es obligatorio");
+      setValidationMsg("El nombre es obligatorio");
       return;
     }
 
@@ -42,10 +45,15 @@ export function StartInterviewForm({ onStarted, presetToken, showTokenField = tr
 
       onStarted(session.id, firstQuestion.id, firstQuestion.text ?? "Pregunta actual");
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Error iniciando entrevista");
+      setErrorState(humanizeError(err));
     } finally {
       setLoading(false);
     }
+  }
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    void submit();
   }
 
   return (
@@ -77,7 +85,8 @@ export function StartInterviewForm({ onStarted, presetToken, showTokenField = tr
         {loading ? "Iniciando..." : "Comenzar entrevista"}
       </button>
 
-      {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
+      {validationMsg ? <p className="error-text">{validationMsg}</p> : null}
+      {errorState ? <ErrorBanner error={errorState} onRetry={() => void submit()} /> : null}
     </form>
   );
 }

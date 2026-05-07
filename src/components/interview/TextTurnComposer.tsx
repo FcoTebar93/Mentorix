@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { interviewApi } from "../../lib/api/interview";
 import { DEFAULT_RUBRIC_DIMENSIONS } from "../../lib/interview/rubric";
+import { ErrorBanner } from "../ErrorBanner";
+import { humanizeError, type HumanError } from "../../lib/errors/humanize";
 
 type Props = {
   sessionId: string;
@@ -22,16 +24,15 @@ export function TextTurnComposer({
 }: Props) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<HumanError | null>(null);
 
   const trimmedLength = text.trim().length;
   const canSubmit = trimmedLength >= MIN_ANSWER_CHARS && !loading;
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function submit() {
     if (!canSubmit) return;
 
-    setErrorMsg(null);
+    setErrorState(null);
     setLoading(true);
 
     try {
@@ -57,12 +58,22 @@ export function TextTurnComposer({
         return;
       }
 
-      setErrorMsg("El servidor no devolvió la siguiente pregunta.");
+      setErrorState({
+        title: "Respuesta sin continuación",
+        message: "El servidor no devolvió la siguiente pregunta. Intenta de nuevo.",
+        retry: true,
+        fallbackToText: false,
+      });
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Error enviando respuesta");
+      setErrorState(humanizeError(err));
     } finally {
       setLoading(false);
     }
+  }
+
+  function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    void submit();
   }
 
   return (
@@ -82,7 +93,7 @@ export function TextTurnComposer({
           </div>
         </article>
 
-        {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
+        {errorState ? <ErrorBanner error={errorState} onRetry={() => void submit()} /> : null}
       </section>
 
       <form className="composer-sticky" onSubmit={onSubmit}>

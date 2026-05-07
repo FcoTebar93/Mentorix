@@ -107,6 +107,7 @@ export function TurnPanel({
           initialQuestionText={current.text}
           onAdvance={advance}
           onCompleted={onCompleted}
+          onSwitchToText={() => setMode("text")}
         />
       )}
     </section>

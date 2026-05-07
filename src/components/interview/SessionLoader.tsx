@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { interviewApi } from "../../lib/api/interview";
 import { TurnPanel } from "./TurnPanel";
+import { ErrorBanner } from "../ErrorBanner";
+import { humanizeError, type HumanError } from "../../lib/errors/humanize";
 
 type Props = {
   sessionId: string;
@@ -10,15 +12,16 @@ type Props = {
 
 export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<HumanError | null>(null);
   const [question, setQuestion] = useState<{ id: string; text: string } | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
 
     async function load() {
       setLoading(true);
-      setErrorMsg(null);
+      setErrorState(null);
 
       try {
         const res = await interviewApi.getSession(sessionId);
@@ -29,7 +32,12 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
         const currentQuestion = session.questions?.[idx];
 
         if (!currentQuestion?.id) {
-          setErrorMsg("No se pudo resolver la pregunta actual.");
+          setErrorState({
+            title: "Sesión incompleta",
+            message: "No se pudo resolver la pregunta actual de esta sesión.",
+            retry: true,
+            fallbackToText: false,
+          });
           return;
         }
 
@@ -39,7 +47,7 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
         });
       } catch (err) {
         if (!active) return;
-        setErrorMsg(err instanceof Error ? err.message : "No se pudo cargar la sesión.");
+        setErrorState(humanizeError(err));
       } finally {
         if (active) setLoading(false);
       }
@@ -49,7 +57,7 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
     return () => {
       active = false;
     };
-  }, [sessionId]);
+  }, [sessionId, reloadKey]);
 
   if (loading) {
     return (
@@ -60,11 +68,11 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
     );
   }
 
-  if (errorMsg) {
+  if (errorState) {
     return (
       <section className="stack-md">
         <button type="button" onClick={onBack}>Volver</button>
-        <p className="error-text">{errorMsg}</p>
+        <ErrorBanner error={errorState} onRetry={() => setReloadKey((k) => k + 1)} />
       </section>
     );
   }

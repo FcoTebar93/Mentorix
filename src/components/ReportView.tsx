@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { interviewApi } from "../lib/api/interview";
 import type { SessionReport } from "../lib/interview/types";
+import { ErrorBanner } from "./ErrorBanner";
+import { humanizeError, type HumanError } from "../lib/errors/humanize";
 
 type Props = {
   sessionId: string;
@@ -113,8 +115,9 @@ function AnalyzingIndicator() {
 
 export function ReportView({ sessionId, celebrate = false }: Props) {
   const [report, setReport] = useState<SessionReport | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<HumanError | null>(null);
   const [minTimeReached, setMinTimeReached] = useState(!celebrate);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!celebrate) return;
@@ -126,7 +129,7 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
     let active = true;
 
     async function load() {
-      setErrorMsg(null);
+      setErrorState(null);
       setReport(null);
       try {
         const res = await interviewApi.getReport(sessionId);
@@ -134,7 +137,7 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
         setReport(res.data);
       } catch (err) {
         if (!active) return;
-        setErrorMsg(err instanceof Error ? err.message : "No se pudo cargar el reporte");
+        setErrorState(humanizeError(err));
       }
     }
 
@@ -142,7 +145,7 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
     return () => {
       active = false;
     };
-  }, [sessionId]);
+  }, [sessionId, reloadKey]);
 
   const sortedDimensions = useMemo(() => {
     if (!report) return [];
@@ -151,7 +154,11 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
 
   const phase: Phase = !minTimeReached ? "celebrating" : !report ? "analyzing" : "ready";
 
-  if (errorMsg) return <p className="error-text">{errorMsg}</p>;
+  if (errorState) {
+    return (
+      <ErrorBanner error={errorState} onRetry={() => setReloadKey((k) => k + 1)} />
+    );
+  }
   if (phase === "celebrating") return <ClosingCelebration />;
   if (phase === "analyzing") return <AnalyzingIndicator />;
   if (!report) return null;

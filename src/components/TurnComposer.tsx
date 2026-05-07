@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { interviewApi } from "../lib/api/interview";
 import { DEFAULT_RUBRIC_DIMENSIONS } from "../lib/interview/rubric";
 import type { RealtimeClientEvent, RealtimeServerEvent } from "../lib/interview/types";
+import { ErrorBanner } from "./ErrorBanner";
+import { humanizeError, type HumanError } from "../lib/errors/humanize";
+import { HttpError } from "../lib/api/client";
 
 const VAD_VOICE_RMS = 0.02;
 const VAD_SILENCE_MS = 1500;
@@ -18,6 +21,7 @@ type Props = {
   initialQuestionText?: string;
   onCompleted: () => void;
   onAdvance?: (next: { questionId: string; questionText: string }) => void;
+  onSwitchToText?: () => void;
 };
 
 export function TurnComposer({
@@ -26,6 +30,7 @@ export function TurnComposer({
   initialQuestionText,
   onCompleted,
   onAdvance,
+  onSwitchToText,
 }: Props) {
   const [questionId, setQuestionId] = useState(initialQuestionId);
   const [questionText, setQuestionText] = useState(initialQuestionText ?? "Pregunta actual");
@@ -33,7 +38,8 @@ export function TurnComposer({
   const [transcript, setTranscript] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<HumanError | null>(null);
+  const [errorSource, setErrorSource] = useState<"recording" | "submit" | "realtime" | null>(null);
   const [streamingAnswer, setStreamingAnswer] = useState<string>("");
   const [realtimePhase, setRealtimePhase] = useState<"idle" | "listening" | "thinking" | "speaking">("speaking");
   const [vadStatus, setVadStatus] = useState<VadStatus>("idle");
@@ -146,7 +152,8 @@ export function TurnComposer({
 
   async function startRecording() {
     if (mediaRecorderRef.current?.state === "recording") return;
-    setErrorMsg(null);
+    setErrorState(null);
+    setErrorSource(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
@@ -182,7 +189,8 @@ export function TurnComposer({
       setTranscript(null);
       startVad(stream);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "No se pudo iniciar la grabación");
+      setErrorState(humanizeError(err));
+      setErrorSource("recording");
     }
   }
 
@@ -198,7 +206,8 @@ export function TurnComposer({
     if (!questionId) return;
     if (loading) return;
 
-    setErrorMsg(null);
+    setErrorState(null);
+    setErrorSource(null);
     setLoading(true);
     setStreamingAnswer("");
 
@@ -209,7 +218,8 @@ export function TurnComposer({
         await submitLegacy(audioPayload);
       }
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Error enviando respuesta");
+      setErrorState(humanizeError(err));
+      setErrorSource("submit");
     } finally {
       setLoading(false);
     }
@@ -244,7 +254,13 @@ export function TurnComposer({
       }
       return;
     }
-    setErrorMsg("El backend no devolvió la siguiente pregunta.");
+    setErrorState({
+      title: "Respuesta sin continuación",
+      message: "El servidor no devolvió la siguiente pregunta. Intenta de nuevo.",
+      retry: true,
+      fallbackToText: true,
+    });
+    setErrorSource("submit");
   }
 
   async function submitRealtime(audioPayload: string) {
@@ -504,7 +520,30 @@ export function TurnComposer({
       }
       if (message.event === "error") {
         closeRealtimeConnection();
-        if (data?.message) setErrorMsg(data.message);
+        if (data) {
+          const code = (data as { code?: string }).code;
+          const msg = (data as { message?: string }).message;
+          if (code) {
+            setErrorState(
+              humanizeError(
+                new HttpError({
+                  status: 502,
+                  code,
+                  message: msg ?? "Realtime error",
+                })
+              )
+            );
+            setErrorSource("realtime");
+          } else if (msg) {
+            setErrorState({
+              title: "Error en streaming",
+              message: msg,
+              retry: true,
+              fallbackToText: true,
+            });
+            setErrorSource("realtime");
+          }
+        }
       }
     };
   }
@@ -551,7 +590,20 @@ export function TurnComposer({
           </article>
         ) : null}
 
-        {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
+        {errorState ? (
+          <ErrorBanner
+            error={errorState}
+            onRetry={
+              errorState.retry
+                ? () => {
+                    if (errorSource === "recording") void startRecording();
+                    else void onSubmit();
+                  }
+                : undefined
+            }
+            onSwitchToText={errorState.fallbackToText ? onSwitchToText : undefined}
+          />
+        ) : null}
       </section>
 
       <section className="composer-sticky">
