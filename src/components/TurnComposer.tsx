@@ -24,7 +24,7 @@ export function TurnComposer({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [streamingAnswer, setStreamingAnswer] = useState<string>("");
-  const [realtimePhase, setRealtimePhase] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
+  const [realtimePhase, setRealtimePhase] = useState<"idle" | "listening" | "thinking" | "speaking">("speaking");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -33,6 +33,7 @@ export function TurnComposer({
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const ttsChunksRef = useRef<string[]>([]);
+  const questionAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const ENABLE_REALTIME_VOICE =
     ((import.meta as { env?: Record<string, string | undefined> }).env?.VITE_VOICE_STREAMING_ENABLED ?? "true") !==
@@ -45,6 +46,7 @@ export function TurnComposer({
     () => !!questionId && !!answerAudioBase64 && !loading && !isRecording,
     [questionId, answerAudioBase64, loading, isRecording]
   );
+  const canRecord = !loading && !isRecording && realtimePhase !== "speaking";
   const statusText =
     realtimePhase === "listening"
       ? "Escuchando..."
@@ -62,8 +64,42 @@ export function TurnComposer({
     return () => {
       closeRealtimeConnection();
       closeEventSource();
+      stopQuestionAudio();
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setRealtimePhase("speaking");
+
+    async function playQuestionAudio() {
+      try {
+        const res = await interviewApi.synthesizeQuestionAudio({ sessionId, questionId });
+        if (!active) return;
+        const audio = new Audio(`data:audio/mpeg;base64,${res.data.audioBase64}`);
+        questionAudioRef.current = audio;
+        audio.onended = () => {
+          if (!active) return;
+          setRealtimePhase("idle");
+        };
+        audio.onerror = () => {
+          if (!active) return;
+          setRealtimePhase("idle");
+        };
+        await audio.play();
+      } catch {
+        if (!active) return;
+        setRealtimePhase("idle");
+      }
+    }
+
+    void playQuestionAudio();
+
+    return () => {
+      active = false;
+      stopQuestionAudio();
+    };
+  }, [sessionId, questionId]);
 
   async function startRecording() {
     setErrorMsg(null);
@@ -238,6 +274,18 @@ export function TurnComposer({
     }
   }
 
+  function stopQuestionAudio() {
+    const audio = questionAudioRef.current;
+    if (!audio) return;
+    try {
+      audio.pause();
+      audio.src = "";
+    } catch {
+      // no-op
+    }
+    questionAudioRef.current = null;
+  }
+
   function closeRealtimeConnection() {
     if (dataChannelRef.current) {
       try {
@@ -353,8 +401,8 @@ export function TurnComposer({
       <section className="composer-sticky">
         <div className="row-actions">
           {!isRecording ? (
-            <button type="button" onClick={startRecording} disabled={loading}>
-              Grabar respuesta
+            <button type="button" onClick={startRecording} disabled={!canRecord}>
+              {realtimePhase === "speaking" ? "Esperando al AI..." : "Grabar respuesta"}
             </button>
           ) : (
             <button type="button" onClick={stopRecording} disabled={loading}>
