@@ -26,21 +26,16 @@ describe("HTTP access-link routes", { timeout: 15000 }, () => {
         url: "/v1/templates",
         headers: auth("u1"),
         payload: {
-          ownerUserId: "u1",
+          templateType: "dynamic",
           title: "Backend Interview",
           role: "Backend Engineer",
           level: "senior",
           language: "es",
           totalQuestions: 4,
+          prompt: "Foco en arquitectura backend y trade-offs.",
           rubric: {
             dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
             passThreshold: 75,
-          },
-          llmConfig: {
-            provider: "openai",
-            model: "gpt-4o-mini",
-            temperature: 0.2,
-            maxTokensPerTurn: 700,
           },
         },
       });

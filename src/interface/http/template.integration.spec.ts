@@ -19,7 +19,7 @@ describe("HTTP template routes", { timeout: 15000 }, () => {
     }
   });
 
-  it("returns 201 when creating template", async () => {
+  it("returns 201 when creating dynamic template", async () => {
     const app = buildHttpTestServer();
     try {
       const res = await app.inject({
@@ -27,23 +27,18 @@ describe("HTTP template routes", { timeout: 15000 }, () => {
         url: "/v1/templates",
         headers: auth("u1"),
         payload: {
-          ownerUserId: "u1",
+          templateType: "dynamic",
           title: "Frontend Interview",
           role: "Frontend Engineer",
           level: "mid",
           language: "es",
           totalQuestions: 5,
+          prompt: "Foco en arquitectura de componentes y rendimiento.",
           rubric: {
             dimensions: [
               { key: "architecture", weight: 1, description: "System design clarity" },
             ],
             passThreshold: 70,
-          },
-          llmConfig: {
-            provider: "openai",
-            model: "gpt-4o-mini",
-            temperature: 0.2,
-            maxTokensPerTurn: 600,
           },
         },
       });
@@ -51,6 +46,42 @@ describe("HTTP template routes", { timeout: 15000 }, () => {
       expect(res.statusCode).toBe(201);
       expect(res.json().code).toBe("OK");
       expect(res.json().data.id).toBeTruthy();
+      expect(res.json().data.templateType).toBe("dynamic");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 201 when creating question_set template", async () => {
+    const app = buildHttpTestServer();
+    try {
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/templates",
+        headers: auth("u1"),
+        payload: {
+          templateType: "question_set",
+          title: "Backend QSet",
+          role: "Backend Engineer",
+          level: "senior",
+          language: "es",
+          questions: [
+            "Explica dependency inversion con un ejemplo.",
+            "Como disenarias un rate limiter distribuido?",
+          ],
+          rubric: {
+            dimensions: [
+              { key: "architecture", weight: 1, description: "System design clarity" },
+            ],
+            passThreshold: 70,
+          },
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      expect(res.json().code).toBe("OK");
+      expect(res.json().data.templateType).toBe("question_set");
+      expect(res.json().data.totalQuestions).toBe(2);
     } finally {
       await app.close();
     }
