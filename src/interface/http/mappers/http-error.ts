@@ -59,6 +59,8 @@ export function mapErrorToHttp(error: unknown): HttpErrorShape {
         return { statusCode: 404, code: "SESSION_NOT_FOUND", message: "Session not found" };
       case "TEMPLATE_NOT_FOUND":
         return { statusCode: 404, code: "TEMPLATE_NOT_FOUND", message: "Template not found" };
+      case "QUESTION_NOT_FOUND":
+        return { statusCode: 404, code: "QUESTION_NOT_FOUND", message: "Question not found in session" };
       case "RUBRIC_DIMENSIONS_REQUIRED":
         return {
           statusCode: 400,
