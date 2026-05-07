@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { CreateTemplateInput, InterviewTemplate } from "../../modules/templates/types";
+import type { CreateTemplateInput, InterviewTemplate, RubricDimension } from "../../modules/templates/types";
 
 type Props = {
   initial?: InterviewTemplate | null;
@@ -8,6 +8,17 @@ type Props = {
   onSubmit: (payload: CreateTemplateInput) => Promise<void>;
   onCancel?: () => void;
 };
+
+const DEFAULT_DIMENSIONS: RubricDimension[] = [
+  { key: "architecture", weight: 1, description: "Decisiones de diseño y arquitectura" },
+  { key: "communication", weight: 1, description: "Claridad para explicar conceptos técnicos" },
+  { key: "problem_solving", weight: 1, description: "Capacidad para abordar y resolver problemas" },
+];
+
+function cloneDimensions(initial?: RubricDimension[]): RubricDimension[] {
+  if (!initial?.length) return DEFAULT_DIMENSIONS.map((dim) => ({ ...dim }));
+  return initial.map((dim) => ({ ...dim }));
+}
 
 export function TemplateForm({
   initial,
@@ -29,10 +40,8 @@ export function TemplateForm({
     initial?.questions?.length ? initial.questions : [""]
   );
 
-  const [rubricKey, setRubricKey] = useState(initial?.rubric.dimensions[0]?.key ?? "architecture");
-  const [rubricWeight, setRubricWeight] = useState(initial?.rubric.dimensions[0]?.weight ?? 1);
-  const [rubricDescription, setRubricDescription] = useState(
-    initial?.rubric.dimensions[0]?.description ?? "Capacidad técnica general"
+  const [dimensions, setDimensions] = useState<RubricDimension[]>(
+    () => cloneDimensions(initial?.rubric.dimensions)
   );
   const [passThreshold, setPassThreshold] = useState(initial?.rubric.passThreshold ?? 70);
 
@@ -52,6 +61,29 @@ export function TemplateForm({
     return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key));
   }, [normalizedQuestions]);
 
+  const dimensionKeyDuplicates = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const dim of dimensions) {
+      const key = dim.key.trim().toLowerCase();
+      if (!key) continue;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key));
+  }, [dimensions]);
+
+  const dimensionsValid = useMemo(() => {
+    if (dimensions.length === 0) return false;
+    return dimensions.every((dim) => {
+      const trimmedKey = dim.key.trim().toLowerCase();
+      return (
+        trimmedKey.length > 0 &&
+        dim.description.trim().length > 0 &&
+        dim.weight > 0 &&
+        !dimensionKeyDuplicates.has(trimmedKey)
+      );
+    });
+  }, [dimensions, dimensionKeyDuplicates]);
+
   const canSubmit = useMemo(() => {
     const parsedQuestions = normalizedQuestions.filter(Boolean);
     const hasDuplicates = parsedQuestions.some((item) => questionDuplicates.has(item.toLowerCase()));
@@ -60,12 +92,10 @@ export function TemplateForm({
       title.trim().length > 0 &&
       role.trim().length > 0 &&
       language.trim().length >= 2 &&
-      rubricKey.trim().length > 0 &&
-      rubricDescription.trim().length > 0 &&
+      dimensionsValid &&
       (templateType === "dynamic"
         ? prompt.trim().length > 0 && totalQuestions > 0
         : parsedQuestions.length > 0 && !hasDuplicates) &&
-      rubricWeight > 0 &&
       passThreshold >= 0 &&
       passThreshold <= 100 &&
       !loading
@@ -78,10 +108,8 @@ export function TemplateForm({
     prompt,
     normalizedQuestions,
     questionDuplicates,
-    rubricKey,
-    rubricDescription,
+    dimensionsValid,
     totalQuestions,
-    rubricWeight,
     passThreshold,
     loading,
   ]);
@@ -104,13 +132,11 @@ export function TemplateForm({
       prompt: templateType === "dynamic" ? prompt.trim() : "",
       questions: templateType === "question_set" ? parsedQuestions : [],
       rubric: {
-        dimensions: [
-          {
-            key: rubricKey.trim(),
-            weight: rubricWeight,
-            description: rubricDescription.trim(),
-          },
-        ],
+        dimensions: dimensions.map((dim) => ({
+          key: dim.key.trim(),
+          weight: dim.weight,
+          description: dim.description.trim(),
+        })),
         passThreshold,
       },
     };
@@ -139,6 +165,32 @@ export function TemplateForm({
 
   function moveQuestion(index: number, direction: -1 | 1) {
     setQuestions((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const copy = [...prev];
+      const tmp = copy[index];
+      copy[index] = copy[target];
+      copy[target] = tmp;
+      return copy;
+    });
+  }
+
+  function updateDimension(index: number, patch: Partial<RubricDimension>) {
+    setDimensions((prev) =>
+      prev.map((dim, idx) => (idx === index ? { ...dim, ...patch } : dim))
+    );
+  }
+
+  function addDimension() {
+    setDimensions((prev) => [...prev, { key: "", weight: 1, description: "" }]);
+  }
+
+  function removeDimension(index: number) {
+    setDimensions((prev) => prev.filter((_, idx) => idx !== index));
+  }
+
+  function moveDimension(index: number, direction: -1 | 1) {
+    setDimensions((prev) => {
       const target = index + direction;
       if (target < 0 || target >= prev.length) return prev;
       const copy = [...prev];
@@ -235,24 +287,81 @@ export function TemplateForm({
       )}
 
       <h3 className="section-title">Rúbrica</h3>
-      <input
-        placeholder="Dimension key (ej: architecture)"
-        value={rubricKey}
-        onChange={(e) => setRubricKey(e.target.value)}
-      />
-      <input
-        type="number"
-        min={0.1}
-        step={0.1}
-        value={rubricWeight}
-        onChange={(e) => setRubricWeight(Number(e.target.value))}
-        placeholder="Peso"
-      />
-      <input
-        placeholder="Descripción dimensión"
-        value={rubricDescription}
-        onChange={(e) => setRubricDescription(e.target.value)}
-      />
+
+      <section className="question-editor">
+        <div className="question-editor-header">
+          <strong>Dimensiones de evaluación</strong>
+          <span>{dimensions.length} cargada{dimensions.length === 1 ? "" : "s"}</span>
+        </div>
+
+        {dimensions.map((dim, index) => {
+          const trimmedKey = dim.key.trim().toLowerCase();
+          const hasDuplicate = !!trimmedKey && dimensionKeyDuplicates.has(trimmedKey);
+          const keyInvalid = !dim.key.trim();
+          const descriptionInvalid = !dim.description.trim();
+          const weightInvalid = dim.weight <= 0;
+
+          return (
+            <div key={`dimension-${index}`} className="question-row">
+              <input
+                value={dim.key}
+                onChange={(e) => updateDimension(index, { key: e.target.value })}
+                placeholder={`Clave (ej: architecture)`}
+              />
+              <input
+                type="number"
+                min={0.1}
+                step={0.1}
+                value={dim.weight}
+                onChange={(e) => updateDimension(index, { weight: Number(e.target.value) })}
+                placeholder="Peso"
+              />
+              <input
+                value={dim.description}
+                onChange={(e) => updateDimension(index, { description: e.target.value })}
+                placeholder="Descripción de la dimensión"
+              />
+
+              <div className="question-row-actions">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => moveDimension(index, -1)}
+                  disabled={index === 0}
+                >
+                  Subir
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => moveDimension(index, 1)}
+                  disabled={index === dimensions.length - 1}
+                >
+                  Bajar
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => removeDimension(index)}
+                  disabled={dimensions.length === 1}
+                >
+                  Eliminar
+                </button>
+              </div>
+
+              {keyInvalid ? <p className="error-text">La clave no puede estar vacía.</p> : null}
+              {hasDuplicate ? <p className="error-text">Clave duplicada.</p> : null}
+              {weightInvalid ? <p className="error-text">El peso debe ser mayor que 0.</p> : null}
+              {descriptionInvalid ? <p className="error-text">La descripción es obligatoria.</p> : null}
+            </div>
+          );
+        })}
+
+        <button type="button" onClick={addDimension}>
+          Añadir dimensión
+        </button>
+      </section>
+
       <input
         type="number"
         min={0}
