@@ -8,6 +8,9 @@ const VAD_SILENCE_MS = 1500;
 const VAD_MIN_SPEECH_MS = 600;
 const VAD_MAX_DURATION_MS = 60_000;
 const VAD_SAMPLE_INTERVAL_MS = 120;
+const AUTO_START_RECORDING_DELAY_MS = 500;
+
+type VadStatus = "idle" | "waiting" | "voice" | "silent_pause";
 
 type Props = {
   sessionId: string;
@@ -31,6 +34,7 @@ export function TurnComposer({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [streamingAnswer, setStreamingAnswer] = useState<string>("");
   const [realtimePhase, setRealtimePhase] = useState<"idle" | "listening" | "thinking" | "speaking">("speaking");
+  const [vadStatus, setVadStatus] = useState<VadStatus>("idle");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -47,6 +51,8 @@ export function TurnComposer({
   const lastVoiceAtRef = useRef<number>(0);
   const voiceMsAccumRef = useRef<number>(0);
   const closedByVadRef = useRef<boolean>(false);
+  const lastVadStatusRef = useRef<VadStatus>("idle");
+  const startRecordingRef = useRef<() => Promise<void>>(async () => {});
 
   const ENABLE_REALTIME_VOICE =
     ((import.meta as { env?: Record<string, string | undefined> }).env?.VITE_VOICE_STREAMING_ENABLED ?? "true") !==
@@ -60,18 +66,23 @@ export function TurnComposer({
     [questionId, answerAudioBase64, loading, isRecording]
   );
   const canRecord = !loading && !isRecording && realtimePhase !== "speaking";
-  const statusText =
-    realtimePhase === "listening"
-      ? "Escuchando..."
-      : realtimePhase === "thinking"
-        ? "Pensando..."
-        : realtimePhase === "speaking"
-          ? "Hablando..."
-          : loading
-            ? "Evaluando..."
-            : isRecording
-              ? "Grabando..."
-              : "Listo para responder";
+  const statusText = useMemo(() => {
+    if (realtimePhase === "speaking") return "AI hablando...";
+    if (loading) return "Procesando respuesta...";
+    if (realtimePhase === "thinking") return "Pensando...";
+    if (isRecording) {
+      switch (vadStatus) {
+        case "voice":
+          return "Te escucho...";
+        case "silent_pause":
+          return "Continúa o termina...";
+        case "waiting":
+        default:
+          return "Tu turno, habla...";
+      }
+    }
+    return "Listo para responder";
+  }, [realtimePhase, loading, isRecording, vadStatus]);
 
   useEffect(() => {
     return () => {
@@ -83,8 +94,27 @@ export function TurnComposer({
   }, []);
 
   useEffect(() => {
+    startRecordingRef.current = startRecording;
+  });
+
+  useEffect(() => {
     let active = true;
+    let autoStartTimer: ReturnType<typeof setTimeout> | null = null;
     setRealtimePhase("speaking");
+
+    function scheduleAutoStartRecording() {
+      if (!active) return;
+      autoStartTimer = setTimeout(() => {
+        if (!active) return;
+        void startRecordingRef.current();
+      }, AUTO_START_RECORDING_DELAY_MS);
+    }
+
+    function handleQuestionAudioFinished() {
+      if (!active) return;
+      setRealtimePhase("idle");
+      scheduleAutoStartRecording();
+    }
 
     async function playQuestionAudio() {
       try {
@@ -92,18 +122,11 @@ export function TurnComposer({
         if (!active) return;
         const audio = new Audio(`data:audio/mpeg;base64,${res.data.audioBase64}`);
         questionAudioRef.current = audio;
-        audio.onended = () => {
-          if (!active) return;
-          setRealtimePhase("idle");
-        };
-        audio.onerror = () => {
-          if (!active) return;
-          setRealtimePhase("idle");
-        };
+        audio.onended = handleQuestionAudioFinished;
+        audio.onerror = handleQuestionAudioFinished;
         await audio.play();
       } catch {
-        if (!active) return;
-        setRealtimePhase("idle");
+        handleQuestionAudioFinished();
       }
     }
 
@@ -111,11 +134,16 @@ export function TurnComposer({
 
     return () => {
       active = false;
+      if (autoStartTimer !== null) {
+        clearTimeout(autoStartTimer);
+        autoStartTimer = null;
+      }
       stopQuestionAudio();
     };
   }, [sessionId, questionId]);
 
   async function startRecording() {
+    if (mediaRecorderRef.current?.state === "recording") return;
     setErrorMsg(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -332,12 +360,15 @@ export function TurnComposer({
     lastVoiceAtRef.current = 0;
     voiceMsAccumRef.current = 0;
 
+    applyVadStatus("waiting");
+
     vadIntervalRef.current = setInterval(() => {
       analyser.getByteTimeDomainData(buffer);
       const rms = computeRmsFromTimeDomain(buffer);
       const now = Date.now();
+      const isVoice = rms >= VAD_VOICE_RMS;
 
-      if (rms >= VAD_VOICE_RMS) {
+      if (isVoice) {
         if (lastVoiceAtRef.current > 0) {
           voiceMsAccumRef.current += now - lastVoiceAtRef.current;
         }
@@ -354,8 +385,23 @@ export function TurnComposer({
       const silenceMs = lastVoiceAtRef.current === 0 ? 0 : now - lastVoiceAtRef.current;
       if (hasEnoughSpeech && silenceMs >= VAD_SILENCE_MS) {
         triggerVadStop();
+        return;
+      }
+
+      if (isVoice) {
+        applyVadStatus("voice");
+      } else if (lastVoiceAtRef.current > 0) {
+        applyVadStatus("silent_pause");
+      } else {
+        applyVadStatus("waiting");
       }
     }, VAD_SAMPLE_INTERVAL_MS);
+  }
+
+  function applyVadStatus(next: VadStatus) {
+    if (lastVadStatusRef.current === next) return;
+    lastVadStatusRef.current = next;
+    setVadStatus(next);
   }
 
   function stopVad() {
@@ -378,6 +424,7 @@ export function TurnComposer({
     vadStartedAtRef.current = 0;
     lastVoiceAtRef.current = 0;
     voiceMsAccumRef.current = 0;
+    applyVadStatus("idle");
   }
 
   function triggerVadStop() {
