@@ -58,8 +58,9 @@ export class StartSessionFromLinkCase {
     if (typeof link.maxUses === "number" && link.usedCount >= link.maxUses) {
       throw new Error("ACCESS_LINK_MAX_USES_REACHED");
     }
+    const isQuestionSet = template.templateType === "question_set";
     let firstQuestionText: string;
-    if (template.templateType === "question_set") {
+    if (isQuestionSet) {
       const first = template.questions?.[0];
       if (!first) throw new Error("TEMPLATE_QUESTIONS_REQUIRED");
       firstQuestionText = first;
@@ -113,7 +114,8 @@ export class StartSessionFromLinkCase {
       id: this.ids.uuid(),
       index: 1,
       text: firstQuestionText,
-      generatedByModel: template.llmConfig.model,
+      generatedByModel: isQuestionSet ? "fixed" : template.llmConfig.model,
+      source: isQuestionSet ? "fixed" : "llm",
       createdAt: this.clock.nowISO(),
     };
 

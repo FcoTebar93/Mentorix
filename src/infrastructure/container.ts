@@ -25,6 +25,7 @@ import {
   AdapterTtsStreamServiceFactory,
 } from "./realtime/streaming.factory.js";
 import { RealtimeVoiceCase } from "../application/cases/realtime-voice.case.js";
+import { SynthesizeQuestionAudioCase } from "../application/cases/synthesize-question.case.js";
 import { WebRtcRealtimeGateway } from "./realtime/webrtc.gateway.js";
 
 export function buildContainer() {
@@ -92,6 +93,7 @@ export function buildContainer() {
   const listSessionReports = new ListSessionReportsCase(sessions);
   const completeTurn = new CompleteTurnCase(submitAnswer, evaluateAnswer, completeSession);
   const voiceTurn = new VoiceTurnCase(sttService, ttsService, completeTurn);
+  const synthesizeQuestionAudio = new SynthesizeQuestionAudioCase(sessions, templates, ttsFactory);
   const realtimeVoice = new RealtimeVoiceCase(
     sttStreamFactory.forVoiceConfig(),
     llmStreamFactory.forTemplate({ provider: "groq", model: "", temperature: 0.2, maxTokensPerTurn: 700 }),
@@ -131,6 +133,7 @@ export function buildContainer() {
       completeTurn,
       voiceTurn,
       realtimeVoice,
+      synthesizeQuestionAudio,
     },
   };
 }

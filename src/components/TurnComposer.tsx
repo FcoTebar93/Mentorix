@@ -3,6 +3,15 @@ import { interviewApi } from "../lib/api/interview";
 import { DEFAULT_RUBRIC_DIMENSIONS } from "../lib/interview/rubric";
 import type { RealtimeClientEvent, RealtimeServerEvent } from "../lib/interview/types";
 
+const VAD_VOICE_RMS = 0.02;
+const VAD_SILENCE_MS = 1500;
+const VAD_MIN_SPEECH_MS = 600;
+const VAD_MAX_DURATION_MS = 60_000;
+const VAD_SAMPLE_INTERVAL_MS = 120;
+const AUTO_START_RECORDING_DELAY_MS = 500;
+
+type VadStatus = "idle" | "waiting" | "voice" | "silent_pause";
+
 type Props = {
   sessionId: string;
   initialQuestionId: string;
@@ -26,7 +35,8 @@ export function TurnComposer({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [streamingAnswer, setStreamingAnswer] = useState<string>("");
-  const [realtimePhase, setRealtimePhase] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
+  const [realtimePhase, setRealtimePhase] = useState<"idle" | "listening" | "thinking" | "speaking">("speaking");
+  const [vadStatus, setVadStatus] = useState<VadStatus>("idle");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -35,6 +45,16 @@ export function TurnComposer({
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const ttsChunksRef = useRef<string[]>([]);
+  const questionAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const vadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const vadStartedAtRef = useRef<number>(0);
+  const lastVoiceAtRef = useRef<number>(0);
+  const voiceMsAccumRef = useRef<number>(0);
+  const closedByVadRef = useRef<boolean>(false);
+  const lastVadStatusRef = useRef<VadStatus>("idle");
+  const startRecordingRef = useRef<() => Promise<void>>(async () => {});
 
   const ENABLE_REALTIME_VOICE =
     ((import.meta as { env?: Record<string, string | undefined> }).env?.VITE_VOICE_STREAMING_ENABLED ?? "true") !==
@@ -47,27 +67,85 @@ export function TurnComposer({
     () => !!questionId && !!answerAudioBase64 && !loading && !isRecording,
     [questionId, answerAudioBase64, loading, isRecording]
   );
-  const statusText =
-    realtimePhase === "listening"
-      ? "Escuchando..."
-      : realtimePhase === "thinking"
-        ? "Pensando..."
-        : realtimePhase === "speaking"
-          ? "Hablando..."
-          : loading
-            ? "Evaluando..."
-            : isRecording
-              ? "Grabando..."
-              : "Listo para responder";
+  const canRecord = !loading && !isRecording && realtimePhase !== "speaking";
+  const statusText = useMemo(() => {
+    if (realtimePhase === "speaking") return "AI hablando...";
+    if (loading) return "Procesando respuesta...";
+    if (realtimePhase === "thinking") return "Pensando...";
+    if (isRecording) {
+      switch (vadStatus) {
+        case "voice":
+          return "Te escucho...";
+        case "silent_pause":
+          return "Continúa o termina...";
+        case "waiting":
+        default:
+          return "Tu turno, habla...";
+      }
+    }
+    return "Listo para responder";
+  }, [realtimePhase, loading, isRecording, vadStatus]);
 
   useEffect(() => {
     return () => {
       closeRealtimeConnection();
       closeEventSource();
+      stopQuestionAudio();
+      stopVad();
     };
   }, []);
 
+  useEffect(() => {
+    startRecordingRef.current = startRecording;
+  });
+
+  useEffect(() => {
+    let active = true;
+    let autoStartTimer: ReturnType<typeof setTimeout> | null = null;
+    setRealtimePhase("speaking");
+
+    function scheduleAutoStartRecording() {
+      if (!active) return;
+      autoStartTimer = setTimeout(() => {
+        if (!active) return;
+        void startRecordingRef.current();
+      }, AUTO_START_RECORDING_DELAY_MS);
+    }
+
+    function handleQuestionAudioFinished() {
+      if (!active) return;
+      setRealtimePhase("idle");
+      scheduleAutoStartRecording();
+    }
+
+    async function playQuestionAudio() {
+      try {
+        const res = await interviewApi.synthesizeQuestionAudio({ sessionId, questionId });
+        if (!active) return;
+        const audio = new Audio(`data:audio/mpeg;base64,${res.data.audioBase64}`);
+        questionAudioRef.current = audio;
+        audio.onended = handleQuestionAudioFinished;
+        audio.onerror = handleQuestionAudioFinished;
+        await audio.play();
+      } catch {
+        handleQuestionAudioFinished();
+      }
+    }
+
+    void playQuestionAudio();
+
+    return () => {
+      active = false;
+      if (autoStartTimer !== null) {
+        clearTimeout(autoStartTimer);
+        autoStartTimer = null;
+      }
+      stopQuestionAudio();
+    };
+  }, [sessionId, questionId]);
+
   async function startRecording() {
+    if (mediaRecorderRef.current?.state === "recording") return;
     setErrorMsg(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -75,18 +153,26 @@ export function TurnComposer({
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
+      closedByVadRef.current = false;
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
 
       recorder.onstop = async () => {
+        stopVad();
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const base64 = await blobToBase64(blob);
         setAnswerAudioBase64(base64);
         setIsRecording(false);
         mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
         mediaStreamRef.current = null;
+
+        const wasVadStop = closedByVadRef.current;
+        closedByVadRef.current = false;
+        if (wasVadStop) {
+          await onSubmit(base64);
+        }
       };
 
       recorder.start();
@@ -94,20 +180,23 @@ export function TurnComposer({
       setRealtimePhase("listening");
       setAnswerAudioBase64(null);
       setTranscript(null);
+      startVad(stream);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "No se pudo iniciar la grabación");
     }
   }
 
   function stopRecording() {
+    closedByVadRef.current = false;
     mediaRecorderRef.current?.stop();
     setRealtimePhase("idle");
   }
 
-  async function onSubmit() {
-    if (!canSubmit) return;
-    const audioPayload = answerAudioBase64;
+  async function onSubmit(audioPayloadOverride?: string) {
+    const audioPayload = audioPayloadOverride ?? answerAudioBase64;
     if (!audioPayload) return;
+    if (!questionId) return;
+    if (loading) return;
 
     setErrorMsg(null);
     setLoading(true);
@@ -243,6 +332,113 @@ export function TurnComposer({
     }
   }
 
+  function stopQuestionAudio() {
+    const audio = questionAudioRef.current;
+    if (!audio) return;
+    try {
+      audio.pause();
+      audio.src = "";
+    } catch {
+      // no-op
+    }
+    questionAudioRef.current = null;
+  }
+
+  function startVad(stream: MediaStream) {
+    stopVad();
+    const AudioContextCtor =
+      window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return;
+
+    const audioContext = new AudioContextCtor();
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 1024;
+    source.connect(analyser);
+
+    audioContextRef.current = audioContext;
+    analyserRef.current = analyser;
+
+    const bufferLength = analyser.fftSize;
+    const buffer = new Uint8Array(bufferLength);
+    vadStartedAtRef.current = Date.now();
+    lastVoiceAtRef.current = 0;
+    voiceMsAccumRef.current = 0;
+
+    applyVadStatus("waiting");
+
+    vadIntervalRef.current = setInterval(() => {
+      analyser.getByteTimeDomainData(buffer);
+      const rms = computeRmsFromTimeDomain(buffer);
+      const now = Date.now();
+      const isVoice = rms >= VAD_VOICE_RMS;
+
+      if (isVoice) {
+        if (lastVoiceAtRef.current > 0) {
+          voiceMsAccumRef.current += now - lastVoiceAtRef.current;
+        }
+        lastVoiceAtRef.current = now;
+      }
+
+      const elapsed = now - vadStartedAtRef.current;
+      if (elapsed >= VAD_MAX_DURATION_MS) {
+        triggerVadStop();
+        return;
+      }
+
+      const hasEnoughSpeech = voiceMsAccumRef.current >= VAD_MIN_SPEECH_MS;
+      const silenceMs = lastVoiceAtRef.current === 0 ? 0 : now - lastVoiceAtRef.current;
+      if (hasEnoughSpeech && silenceMs >= VAD_SILENCE_MS) {
+        triggerVadStop();
+        return;
+      }
+
+      if (isVoice) {
+        applyVadStatus("voice");
+      } else if (lastVoiceAtRef.current > 0) {
+        applyVadStatus("silent_pause");
+      } else {
+        applyVadStatus("waiting");
+      }
+    }, VAD_SAMPLE_INTERVAL_MS);
+  }
+
+  function applyVadStatus(next: VadStatus) {
+    if (lastVadStatusRef.current === next) return;
+    lastVadStatusRef.current = next;
+    setVadStatus(next);
+  }
+
+  function stopVad() {
+    if (vadIntervalRef.current) {
+      clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = null;
+    }
+    if (analyserRef.current) {
+      try {
+        analyserRef.current.disconnect();
+      } catch {
+        // no-op
+      }
+      analyserRef.current = null;
+    }
+    if (audioContextRef.current) {
+      void audioContextRef.current.close().catch(() => undefined);
+      audioContextRef.current = null;
+    }
+    vadStartedAtRef.current = 0;
+    lastVoiceAtRef.current = 0;
+    voiceMsAccumRef.current = 0;
+    applyVadStatus("idle");
+  }
+
+  function triggerVadStop() {
+    if (!mediaRecorderRef.current) return;
+    if (mediaRecorderRef.current.state !== "recording") return;
+    closedByVadRef.current = true;
+    mediaRecorderRef.current.stop();
+  }
+
   function closeRealtimeConnection() {
     if (dataChannelRef.current) {
       try {
@@ -361,15 +557,15 @@ export function TurnComposer({
       <section className="composer-sticky">
         <div className="row-actions">
           {!isRecording ? (
-            <button type="button" onClick={startRecording} disabled={loading}>
-              Grabar respuesta
+            <button type="button" onClick={startRecording} disabled={!canRecord}>
+              {realtimePhase === "speaking" ? "Esperando al AI..." : "Grabar respuesta"}
             </button>
           ) : (
             <button type="button" onClick={stopRecording} disabled={loading}>
               Detener grabación
             </button>
           )}
-          <button type="button" onClick={onSubmit} disabled={!canSubmit}>
+          <button type="button" onClick={() => void onSubmit()} disabled={!canSubmit}>
             {loading ? "Enviando audio..." : "Enviar respuesta por voz"}
           </button>
         </div>
@@ -452,6 +648,16 @@ async function blobToBase64(blob: Blob): Promise<string> {
   const bytes = new Uint8Array(buffer);
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary);
+}
+
+function computeRmsFromTimeDomain(buffer: Uint8Array): number {
+  if (buffer.length === 0) return 0;
+  let sumSquares = 0;
+  for (let i = 0; i < buffer.length; i += 1) {
+    const normalized = (buffer[i]! - 128) / 128;
+    sumSquares += normalized * normalized;
+  }
+  return Math.sqrt(sumSquares / buffer.length);
 }
 
 function sendRealtimeMessage(channel: RTCDataChannel, message: RealtimeClientEvent): void {

@@ -6,6 +6,8 @@ import type {
   InterviewSession,
   SessionReport,
   StartFromLinkBody,
+  TtsQuestionBody,
+  TtsQuestionResult,
   VoiceTurnBody,
   VoiceTurnResult,
   RealtimeNegotiateBody,
@@ -47,6 +49,16 @@ export const interviewApi = {
   voiceTurn(sessionId: string, body: VoiceTurnBody) {
     return apiRequest<ApiOk<VoiceTurnResult>>(
       `${API_BASE_URL}/v1/interview-sessions/${sessionId}/voice-turn`,
+      {
+        method: "POST",
+        headers: AUTH_HEADER,
+        body: JSON.stringify(body),
+      }
+    );
+  },
+  synthesizeQuestionAudio(body: TtsQuestionBody) {
+    return apiRequest<ApiOk<TtsQuestionResult>>(
+      `${API_BASE_URL}/v1/voice/tts/question`,
       {
         method: "POST",
         headers: AUTH_HEADER,

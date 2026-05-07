@@ -32,8 +32,9 @@ export class CompleteSessionCase {
       const template = await this.templates.getById(session.state.templateId);
       if (!template) throw new Error("TEMPLATE_NOT_FOUND");
 
+      const isQuestionSet = template.templateType === "question_set";
       let nextQuestionText: string;
-      if (template.templateType === "question_set") {
+      if (isQuestionSet) {
         const next = template.questions?.[session.state.currentQuestionIndex];
         if (!next) throw new Error("TEMPLATE_QUESTION_NOT_FOUND");
         nextQuestionText = next;
@@ -62,7 +63,8 @@ export class CompleteSessionCase {
         id: this.ids.uuid(),
         index: session.state.currentQuestionIndex + 1,
         text: nextQuestionText,
-        generatedByModel: template.llmConfig.model,
+        generatedByModel: isQuestionSet ? "fixed" : template.llmConfig.model,
+        source: isQuestionSet ? "fixed" : "llm",
         createdAt: now,
       };
 

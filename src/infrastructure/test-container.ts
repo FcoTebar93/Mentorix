@@ -26,6 +26,7 @@ import { ListSessionReportsCase } from "../application/cases/list-reports.case.j
 import { CompleteTurnCase } from "../application/cases/complete-turn.case.js";
 import { VoiceTurnCase } from "../application/cases/voice.case.js";
 import { RealtimeVoiceCase } from "../application/cases/realtime-voice.case.js";
+import { SynthesizeQuestionAudioCase } from "../application/cases/synthesize-question.case.js";
 import { RealtimeEventHub } from "./realtime/event-hub.js";
 import {
   AdapterLlmStreamServiceFactory,
@@ -129,6 +130,7 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
   const listSessionReports = new ListSessionReportsCase(sessions);
   const completeTurn = new CompleteTurnCase(submitAnswer, evaluateAnswer, completeSession);
   const voiceTurn = new VoiceTurnCase(sttService, ttsService, completeTurn);
+  const synthesizeQuestionAudio = new SynthesizeQuestionAudioCase(sessions, templates, ttsFactory);
   const realtimeVoice = new RealtimeVoiceCase(
     sttStreamFactory.forVoiceConfig(),
     llmStreamFactory.forTemplate({ provider: "mock", model: "mock", temperature: 0.2, maxTokensPerTurn: 128 }),
@@ -169,6 +171,7 @@ export function buildTestContainer(options: BuildTestContainerOptions = {}) {
       completeTurn,
       voiceTurn,
       realtimeVoice,
+      synthesizeQuestionAudio,
     },
   };
 }

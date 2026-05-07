@@ -25,11 +25,14 @@ export interface SessionEntryPoint {
   accessLinkId?: UUID;
 }
 
+export type SessionQuestionSource = "llm" | "fixed";
+
 export interface SessionQuestion {
   id: UUID;
   index: number;
   text: string;
   generatedByModel: string;
+  source?: SessionQuestionSource;
   createdAt: ISODateString;
 }
 
