@@ -645,8 +645,6 @@ button:disabled {
   letter-spacing: 0.4px;
 }
 
-/* ===== Error banner ===== */
-
 .error-banner {
   display: flex;
   flex-wrap: wrap;
@@ -692,8 +690,6 @@ button:disabled {
   gap: var(--spacing-8);
   align-self: center;
 }
-
-/* ===== Closing animation ===== */
 
 .closing-stage {
   display: grid;
