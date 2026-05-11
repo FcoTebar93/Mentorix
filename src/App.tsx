@@ -12,6 +12,7 @@ import { TemplateForm } from "./modules/templates/TemplateForm";
 import { TemplateLinksPage } from "./modules/templates/TemplateLinksPage";
 import { templatesApi } from "./modules/templates/templates.api";
 import type { CreateTemplateInput, InterviewTemplate } from "./modules/templates/types";
+import { LandingPage } from "./modules/landing/LandingPage";
 type ViewState =
   | { step: "session"; sessionId: string; questionId?: string; questionText?: string }
   | { step: "report"; sessionId: string; celebrate?: boolean }
@@ -35,8 +36,60 @@ function getCandidateTokenFromLocation(): string | null {
   return decodeURIComponent(parts[1]);
 }
 
+function isLandingLocation(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.pathname === "/";
+}
+
+function navigateTo(path: string): void {
+  if (typeof window === "undefined") return;
+  window.location.assign(path);
+}
+
+function promptCandidateLink(): void {
+  if (typeof window === "undefined") return;
+  const input = window.prompt(
+    "Pega aquí tu link de entrevista o el token compartido por el reclutador:"
+  );
+  if (!input) return;
+  const trimmed = input.trim();
+  if (!trimmed) return;
+
+  try {
+    const asUrl = new URL(trimmed);
+    window.location.assign(asUrl.pathname + asUrl.search);
+    return;
+  } catch {
+    // no es URL absoluta: lo tratamos como token suelto
+  }
+
+  const token = trimmed.replace(/^\/+/, "").replace(/^interview\//, "");
+  window.location.assign(`/interview/${encodeURIComponent(token)}`);
+}
+
 export default function App() {
   const candidateToken = getCandidateTokenFromLocation();
+  const isCandidateView = !!candidateToken;
+  const isLanding = !isCandidateView && isLandingLocation();
+
+  if (isLanding) {
+    return (
+      <LandingPage
+        onLogin={() => navigateTo("/admin")}
+        onCreate={() => navigateTo("/admin")}
+        onCandidateAccess={promptCandidateLink}
+      />
+    );
+  }
+
+  return <AppShell candidateToken={candidateToken} />;
+}
+
+type AppShellProps = {
+  candidateToken: string | null;
+};
+
+function AppShell({ candidateToken }: AppShellProps) {
   const isCandidateView = !!candidateToken;
   const [state, setState] = useState<ViewState>({ step: "templates:list" });
   const [candidateState, setCandidateState] = useState<CandidateState>({ step: "start" });
