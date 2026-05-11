@@ -3,7 +3,7 @@ import { buildServer } from "./interface/http/server.js";
 
 async function bootstrap() {
   const app = buildServer();
-  const port = Number(process.env.PORT ?? 3000);
+  const port = Number(process.env.PORT ?? 4000);
   const host = process.env.HOST ?? "0.0.0.0";
 
   await app.listen({ port, host });
