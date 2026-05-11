@@ -1,15 +1,10 @@
 import { useEffect, useState } from "react";
-import { templatesApi } from "../../modules/templates/templates.api";
-import type { InterviewTemplate } from "../../modules/templates/types";
+import { useNavigate } from "react-router-dom";
+import { templatesApi } from "./templates.api";
+import type { InterviewTemplate } from "./types";
 
-type Props = {
-  onCreate: () => void;
-  onEdit: (templateId: string) => void;
-  onLinks: (templateId: string) => void;
-  onResults: (templateId: string) => void;
-};
-
-export function TemplateListPage({ onCreate, onEdit, onLinks, onResults }: Props) {
+export function TemplateListPage() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<InterviewTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -44,7 +39,7 @@ export function TemplateListPage({ onCreate, onEdit, onLinks, onResults }: Props
     <section className="panel">
       <div className="panel-header">
         <h2>Entrevistas</h2>
-        <button type="button" onClick={onCreate}>
+        <button type="button" onClick={() => navigate("/admin/templates/new")}>
           Nueva entrevista
         </button>
       </div>
@@ -66,13 +61,13 @@ export function TemplateListPage({ onCreate, onEdit, onLinks, onResults }: Props
             <span>Estado: {t.isArchived ? "Archivada" : "Activa"}</span>
 
             <div className="row-actions">
-              <button type="button" onClick={() => onEdit(t.id)}>
+              <button type="button" onClick={() => navigate(`/admin/templates/${t.id}/edit`)}>
                 Editar
               </button>
-              <button type="button" onClick={() => onLinks(t.id)}>
+              <button type="button" onClick={() => navigate(`/admin/templates/${t.id}/links`)}>
                 Links
               </button>
-              <button type="button" onClick={() => onResults(t.id)}>
+              <button type="button" onClick={() => navigate(`/admin/templates/${t.id}/results`)}>
                 Resultados
               </button>
               <button type="button" onClick={() => onDelete(t.id)}>

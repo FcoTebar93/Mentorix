@@ -1,5 +1,15 @@
-import { useEffect, useState } from "react";
-import type { ReactElement } from "react";
+import { useCallback } from "react";
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+
 import { StartInterviewForm } from "./components/StartInterviewForm";
 import { TurnPanel } from "./components/interview/TurnPanel";
 import { ReportView } from "./components/ReportView";
@@ -8,45 +18,54 @@ import { SessionLoader } from "./components/interview/SessionLoader";
 import { AuthGuard } from "./modules/auth/AuthGuard";
 import { useAuth } from "./modules/auth/AuthContext";
 import { TemplateListPage } from "./modules/templates/TemplateListPage";
-import { TemplateForm } from "./modules/templates/TemplateForm";
+import { TemplateNewPage } from "./modules/templates/TemplateNewPage";
+import { TemplateEditPage } from "./modules/templates/TemplateEditPage";
 import { TemplateLinksPage } from "./modules/templates/TemplateLinksPage";
-import { templatesApi } from "./modules/templates/templates.api";
-import type { CreateTemplateInput, InterviewTemplate } from "./modules/templates/types";
+import { TemplateResultsPage } from "./modules/templates/TemplateResultsPage";
 import { LandingPage } from "./modules/landing/LandingPage";
-type ViewState =
-  | { step: "session"; sessionId: string; questionId?: string; questionText?: string }
-  | { step: "report"; sessionId: string; celebrate?: boolean }
-  | { step: "sessions" }
-  | { step: "templates:list" }
-  | { step: "templates:new" }
-  | { step: "templates:edit"; templateId: string }
-  | { step: "templates:links"; templateId: string }
-  | { step: "templates:results"; templateId: string };
 
-type CandidateState =
-  | { step: "start" }
-  | { step: "session"; sessionId: string; questionId?: string; questionText?: string }
-  | { step: "report"; sessionId: string; celebrate?: boolean };
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LandingRoute />} />
 
-function getCandidateTokenFromLocation(): string | null {
-  if (typeof window === "undefined") return null;
-  const { pathname } = window.location;
-  const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] !== "interview" || !parts[1]) return null;
-  return decodeURIComponent(parts[1]);
+        <Route path="/interview/:token" element={<CandidateLayout />}>
+          <Route index element={<CandidateStartRoute />} />
+          <Route path="session/:sessionId" element={<CandidateSessionRoute />} />
+          <Route path="report/:sessionId" element={<CandidateReportRoute />} />
+        </Route>
+
+        <Route element={<AdminLayout />}>
+          <Route path="/admin" element={<Navigate to="/admin/templates" replace />} />
+          <Route path="/admin/templates" element={<TemplateListPage />} />
+          <Route path="/admin/templates/new" element={<TemplateNewPage />} />
+          <Route path="/admin/templates/:templateId/edit" element={<TemplateEditPage />} />
+          <Route path="/admin/templates/:templateId/links" element={<TemplateLinksRoute />} />
+          <Route path="/admin/templates/:templateId/results" element={<TemplateResultsPage />} />
+          <Route path="/admin/sessions" element={<SessionsPage />} />
+          <Route path="/admin/sessions/:sessionId" element={<SessionRunRoute />} />
+          <Route path="/admin/sessions/:sessionId/report" element={<SessionReportRoute />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-function isLandingLocation(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.location.pathname === "/";
+function LandingRoute() {
+  const navigate = useNavigate();
+  return (
+    <LandingPage
+      onLogin={() => navigate("/admin")}
+      onCreate={() => navigate("/admin")}
+      onCandidateAccess={() => promptCandidateLink(navigate)}
+    />
+  );
 }
 
-function navigateTo(path: string): void {
-  if (typeof window === "undefined") return;
-  window.location.assign(path);
-}
-
-function promptCandidateLink(): void {
+function promptCandidateLink(navigate: (path: string) => void): void {
   if (typeof window === "undefined") return;
   const input = window.prompt(
     "Pega aquí tu link de entrevista o el token compartido por el reclutador:"
@@ -57,255 +76,113 @@ function promptCandidateLink(): void {
 
   try {
     const asUrl = new URL(trimmed);
-    window.location.assign(asUrl.pathname + asUrl.search);
+    navigate(asUrl.pathname + asUrl.search);
     return;
   } catch {
     // no es URL absoluta: lo tratamos como token suelto
   }
 
   const token = trimmed.replace(/^\/+/, "").replace(/^interview\//, "");
-  window.location.assign(`/interview/${encodeURIComponent(token)}`);
+  navigate(`/interview/${encodeURIComponent(token)}`);
 }
 
-export default function App() {
-  const candidateToken = getCandidateTokenFromLocation();
-  const isCandidateView = !!candidateToken;
-  const isLanding = !isCandidateView && isLandingLocation();
+function CandidateLayout() {
+  const { token } = useParams<{ token: string }>();
 
-  if (isLanding) {
+  if (!token) return <Navigate to="/" replace />;
+
+  return (
+    <section className="candidate-shell">
+      <section className="candidate-layout">
+        <aside className="candidate-sidebar">
+          <div className="brand-block">
+            <strong>Mentorix AI</strong>
+            <span>Interview</span>
+          </div>
+          <nav className="candidate-nav">
+            <button type="button" className="is-active">Interview</button>
+            <button type="button">History</button>
+            <button type="button">Settings</button>
+          </nav>
+          <p className="sidebar-muted">Preparado para entrevistas técnicas guiadas por IA.</p>
+        </aside>
+        <section className="candidate-card">
+          <Outlet />
+        </section>
+      </section>
+    </section>
+  );
+}
+
+function CandidateStartRoute() {
+  const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
+
+  return (
+    <StartInterviewForm
+      presetToken={token ?? ""}
+      showTokenField={false}
+      onStarted={(sessionId, firstQuestionId, firstQuestionText) =>
+        navigate(`session/${encodeURIComponent(sessionId)}`, {
+          state: { questionId: firstQuestionId, questionText: firstQuestionText },
+        })
+      }
+    />
+  );
+}
+
+function CandidateSessionRoute() {
+  const { token, sessionId } = useParams<{ token: string; sessionId: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  if (!sessionId) return <Navigate to={`/interview/${encodeURIComponent(token ?? "")}`} replace />;
+
+  const handleBack = () => navigate(`/interview/${encodeURIComponent(token ?? "")}`);
+  const handleCompleted = () =>
+    navigate(`/interview/${encodeURIComponent(token ?? "")}/report/${encodeURIComponent(sessionId)}`, {
+      state: { celebrate: true },
+    });
+
+  const initialQuestionId = (location.state as { questionId?: string } | null)?.questionId;
+  const initialQuestionText = (location.state as { questionText?: string } | null)?.questionText;
+
+  if (initialQuestionId) {
     return (
-      <LandingPage
-        onLogin={() => navigateTo("/admin")}
-        onCreate={() => navigateTo("/admin")}
-        onCandidateAccess={promptCandidateLink}
+      <TurnPanel
+        sessionId={sessionId}
+        initialQuestionId={initialQuestionId}
+        initialQuestionText={initialQuestionText}
+        onCompleted={handleCompleted}
       />
     );
   }
 
-  return <AppShell candidateToken={candidateToken} />;
+  return <SessionLoader sessionId={sessionId} onBack={handleBack} onCompleted={handleCompleted} />;
 }
 
-type AppShellProps = {
-  candidateToken: string | null;
-};
+function CandidateReportRoute() {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const location = useLocation();
 
-function AppShell({ candidateToken }: AppShellProps) {
-  const isCandidateView = !!candidateToken;
-  const [state, setState] = useState<ViewState>({ step: "templates:list" });
-  const [candidateState, setCandidateState] = useState<CandidateState>({ step: "start" });
+  if (!sessionId) return <Navigate to="/" replace />;
+
+  const celebrate = (location.state as { celebrate?: boolean } | null)?.celebrate ?? true;
+  return <ReportView sessionId={sessionId} celebrate={celebrate} />;
+}
+
+function AdminLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { logout, user } = useAuth();
 
-  const [editingTemplate, setEditingTemplate] = useState<InterviewTemplate | null>(null);
-  const [templateLoading, setTemplateLoading] = useState(false);
-  const [templateError, setTemplateError] = useState<string | null>(null);
-  const [templateSaving, setTemplateSaving] = useState(false);
+  const handleLogout = useCallback(() => {
+    logout();
+    navigate("/", { replace: true });
+  }, [logout, navigate]);
 
-  useEffect(() => {
-    if (state.step !== "templates:edit") return;
-    const templateId = state.templateId;
-
-    let active = true;
-    async function loadTemplate() {
-      setTemplateLoading(true);
-      setTemplateError(null);
-      try {
-        const res = await templatesApi.getById(templateId);
-        if (!active) return;
-        setEditingTemplate(res.data);
-      } catch (err) {
-        if (!active) return;
-        setTemplateError(err instanceof Error ? err.message : "No se pudo cargar la plantilla");
-      } finally {
-        if (active) setTemplateLoading(false);
-      }
-    }
-
-    loadTemplate();
-    return () => {
-      active = false;
-    };
-  }, [state]);
-
-  let content: ReactElement;
-  const activeAdminTab =
-    state.step.startsWith("templates:")
-      ? "templates"
-      : "sessions";
-
-  if (isCandidateView) {
-    if (candidateState.step === "start") {
-      content = (
-        <StartInterviewForm
-          presetToken={candidateToken ?? ""}
-          showTokenField={false}
-          onStarted={(sessionId: string, firstQuestionId: string, firstQuestionText: string) =>
-            setCandidateState({
-              step: "session",
-              sessionId,
-              questionId: firstQuestionId,
-              questionText: firstQuestionText,
-            })
-          }
-        />
-      );
-    } else if (candidateState.step === "session") {
-      if (!candidateState.questionId) {
-        content = (
-          <SessionLoader
-            sessionId={candidateState.sessionId}
-            onBack={() => setCandidateState({ step: "start" })}
-            onCompleted={() =>
-              setCandidateState({
-                step: "report",
-                sessionId: candidateState.sessionId,
-                celebrate: true,
-              })
-            }
-          />
-        );
-      } else {
-        content = (
-          <TurnPanel
-            sessionId={candidateState.sessionId}
-            initialQuestionId={candidateState.questionId}
-            initialQuestionText={candidateState.questionText}
-            onCompleted={() =>
-              setCandidateState({
-                step: "report",
-                sessionId: candidateState.sessionId,
-                celebrate: true,
-              })
-            }
-          />
-        );
-      }
-    } else {
-      content = <ReportView sessionId={candidateState.sessionId} celebrate={candidateState.celebrate} />;
-    }
-
-    return (
-      <section className="candidate-shell">
-        <section className="candidate-layout">
-          <aside className="candidate-sidebar">
-            <div className="brand-block">
-              <strong>Mentorix AI</strong>
-              <span>Infra Engineer Interview</span>
-            </div>
-            <nav className="candidate-nav">
-              <button type="button" className="is-active">Interview</button>
-              <button type="button">History</button>
-              <button type="button">Settings</button>
-            </nav>
-            <p className="sidebar-muted">Preparado para entrevistas técnicas guiadas por IA.</p>
-          </aside>
-          <section className="candidate-card">{content}</section>
-        </section>
-      </section>
-    );
-  }
-
-  if (state.step === "sessions") {
-    content = (
-      <SessionsPage
-        onBack={() => setState({ step: "templates:list" })}
-        onOpenReport={(sessionId: string) => setState({ step: "report", sessionId })}
-        onContinue={(sessionId: string) => setState({ step: "session", sessionId })}
-      />
-    );
-  } else if (state.step === "session") {
-    if (!state.questionId) {
-      content = (
-        <SessionLoader
-          sessionId={state.sessionId}
-          onBack={() => setState({ step: "sessions" })}
-          onCompleted={() => setState({ step: "report", sessionId: state.sessionId, celebrate: true })}
-        />
-      );
-    } else {
-      content = (
-        <section className="stack-md">
-          <button type="button" onClick={() => setState({ step: "sessions" })}>
-            Volver
-          </button>
-          <TurnPanel
-            sessionId={state.sessionId}
-            initialQuestionId={state.questionId}
-            initialQuestionText={state.questionText}
-            onCompleted={() =>
-              setState({ step: "report", sessionId: state.sessionId, celebrate: true })
-            }
-          />
-        </section>
-      );
-    }
-  } else if (state.step === "report") {
-    content = <ReportView sessionId={state.sessionId} celebrate={state.celebrate} />;
-  } else if (state.step === "templates:list") {
-    content = (
-      <TemplateListPage
-        onCreate={() => setState({ step: "templates:new" })}
-        onEdit={(templateId: string) => setState({ step: "templates:edit", templateId })}
-        onLinks={(templateId: string) => setState({ step: "templates:links", templateId })}
-        onResults={(templateId: string) => setState({ step: "templates:results", templateId })}
-      />
-    );
-  } else if (state.step === "templates:new") {
-    content = (
-      <TemplateForm
-        loading={templateSaving}
-        submitLabel="Crear entrevista"
-        onCancel={() => setState({ step: "templates:list" })}
-        onSubmit={async (payload: CreateTemplateInput) => {
-          setTemplateSaving(true);
-          try {
-            await templatesApi.create(payload);
-            setState({ step: "templates:list" });
-          } finally {
-            setTemplateSaving(false);
-          }
-        }}
-      />
-    );
-  } else if (state.step === "templates:edit") {
-    if (templateLoading) {
-      content = <p>Cargando plantilla...</p>;
-    } else if (templateError) {
-      content = <p className="error-text">{templateError}</p>;
-    } else if (!editingTemplate) {
-      content = <p>No se encontró la plantilla.</p>;
-    } else {
-      content = (
-        <TemplateForm
-          initial={editingTemplate}
-          loading={templateSaving}
-          submitLabel="Guardar cambios"
-          onCancel={() => setState({ step: "templates:list" })}
-          onSubmit={async (payload: CreateTemplateInput) => {
-            setTemplateSaving(true);
-            try {
-              await templatesApi.update(editingTemplate.id, payload);
-              setState({ step: "templates:list" });
-            } finally {
-              setTemplateSaving(false);
-            }
-          }}
-        />
-      );
-    }
-  } else if (state.step === "templates:links") {
-    content = <TemplateLinksPage templateId={state.templateId} onBack={() => setState({ step: "templates:list" })} />;
-  } else {
-    content = (
-      <section className="stack-md">
-        <h2>Resultados de entrevista</h2>
-        <p>Template ID: {state.templateId}</p>
-        <p>Aqui conectaremos metricas y sesiones filtradas por entrevista.</p>
-        <button type="button" onClick={() => setState({ step: "templates:list" })}>
-          Volver a entrevistas
-        </button>
-      </section>
-    );
-  }
+  const isTemplates = location.pathname.startsWith("/admin/templates");
+  const isSessions = location.pathname.startsWith("/admin/sessions");
 
   return (
     <AuthGuard>
@@ -318,27 +195,95 @@ function AppShell({ candidateToken }: AppShellProps) {
           <nav className="admin-nav">
             <button
               type="button"
-              className={activeAdminTab === "templates" ? "is-active" : ""}
-              onClick={() => setState({ step: "templates:list" })}
+              className={isTemplates ? "is-active" : ""}
+              onClick={() => navigate("/admin/templates")}
             >
               Entrevistas
             </button>
             <button
               type="button"
-              className={activeAdminTab === "sessions" ? "is-active" : ""}
-              onClick={() => setState({ step: "sessions" })}
+              className={isSessions ? "is-active" : ""}
+              onClick={() => navigate("/admin/sessions")}
             >
               Sesiones
             </button>
           </nav>
-          <button type="button" className="btn-ghost" onClick={logout}>
+          <button type="button" className="btn-ghost" onClick={handleLogout}>
             Salir
           </button>
         </header>
         <section className="page-content">
-          {content}
+          <Outlet />
         </section>
       </section>
     </AuthGuard>
+  );
+}
+
+function TemplateLinksRoute() {
+  const { templateId } = useParams<{ templateId: string }>();
+  const navigate = useNavigate();
+
+  if (!templateId) return <Navigate to="/admin/templates" replace />;
+
+  return (
+    <TemplateLinksPage
+      templateId={templateId}
+      onBack={() => navigate("/admin/templates")}
+    />
+  );
+}
+
+function SessionRunRoute() {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  if (!sessionId) return <Navigate to="/admin/sessions" replace />;
+
+  const initialQuestionId = (location.state as { questionId?: string } | null)?.questionId;
+  const initialQuestionText = (location.state as { questionText?: string } | null)?.questionText;
+
+  const handleBack = () => navigate("/admin/sessions");
+  const handleCompleted = () =>
+    navigate(`/admin/sessions/${encodeURIComponent(sessionId)}/report`, {
+      state: { celebrate: true },
+    });
+
+  return (
+    <section className="stack-md">
+      <button type="button" className="btn-ghost" onClick={handleBack}>
+        Volver
+      </button>
+      {initialQuestionId ? (
+        <TurnPanel
+          sessionId={sessionId}
+          initialQuestionId={initialQuestionId}
+          initialQuestionText={initialQuestionText}
+          onCompleted={handleCompleted}
+        />
+      ) : (
+        <SessionLoader sessionId={sessionId} onBack={handleBack} onCompleted={handleCompleted} />
+      )}
+    </section>
+  );
+}
+
+function SessionReportRoute() {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  if (!sessionId) return <Navigate to="/admin/sessions" replace />;
+
+  const celebrate = (location.state as { celebrate?: boolean } | null)?.celebrate;
+
+  return (
+    <section className="stack-md">
+      <button type="button" className="btn-ghost" onClick={() => navigate("/admin/sessions")}>
+        Volver a sesiones
+      </button>
+      <ReportView sessionId={sessionId} celebrate={celebrate} />
+    </section>
   );
 }

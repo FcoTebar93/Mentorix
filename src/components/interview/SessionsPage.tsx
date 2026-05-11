@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { interviewApi } from "../../lib/api/interview";
 import type {
   SessionListItem,
@@ -6,15 +7,10 @@ import type {
 } from "../../lib/interview/types";
 import { SessionList } from "./SessionList";
 
-type Props = {
-  onBack: () => void;
-  onOpenReport: (sessionId: string) => void;
-  onContinue: (sessionId: string) => void;
-};
-
 const PAGE_SIZE = 10;
 
-export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
+export function SessionsPage() {
+  const navigate = useNavigate();
   const [allSessions, setAllSessions] = useState<SessionListItem[]>([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
@@ -30,7 +26,6 @@ export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
 
       try {
         const status = filter === "all" ? undefined : filter;
-        // Pedimos un bloque mayor y paginamos en UI
         const res = await interviewApi.listSessions({ status, limit: 100 });
         if (!active) return;
         setAllSessions(res.data ?? []);
@@ -92,8 +87,8 @@ export function SessionsPage({ onBack, onOpenReport, onContinue }: Props) {
         <>
           <SessionList
             sessions={visibleSessions}
-            onOpenReport={onOpenReport}
-            onContinue={onContinue}
+            onOpenReport={(sessionId) => navigate(`/admin/sessions/${encodeURIComponent(sessionId)}/report`)}
+            onContinue={(sessionId) => navigate(`/admin/sessions/${encodeURIComponent(sessionId)}`)}
             onDelete={handleDelete}
           />
 
