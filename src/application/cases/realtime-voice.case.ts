@@ -67,8 +67,12 @@ export class RealtimeVoiceCase {
           yield this.mapLlmEvent(tokenEvent);
         }
       }
-      for await (const audioEvent of this.ttsStream.synthesizeStream({ text: nextText, locale: input.locale })) {
-        yield this.mapTtsEvent(audioEvent);
+      try {
+        for await (const audioEvent of this.ttsStream.synthesizeStream({ text: nextText, locale: input.locale })) {
+          yield this.mapTtsEvent(audioEvent);
+        }
+      } catch {
+        yield { type: "tts_done" };
       }
     }
 

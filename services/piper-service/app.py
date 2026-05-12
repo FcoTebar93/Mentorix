@@ -17,30 +17,22 @@ class SynthesizeInput(BaseModel):
 app = FastAPI(title="mentorix-piper-service")
 
 _voice: PiperVoice | None = None
-_voice_lock = threading.Lock()
-
-
-def _load_voice() -> PiperVoice:
-    global _voice
-    if _voice is not None:
-        return _voice
-    with _voice_lock:
-        if _voice is not None:
-            return _voice
-        model_path = os.getenv("PIPER_MODEL_PATH", "")
-        config_path = os.getenv("PIPER_CONFIG_PATH", "") or None
-        if not model_path:
-            raise RuntimeError("PIPER_MODEL_PATH is required")
-        _voice = PiperVoice.load(model_path, config_path=config_path, use_cuda=False)
-        return _voice
+_synth_lock = threading.Lock()
 
 
 @app.on_event("startup")
-def _warm_up_voice() -> None:
+def _load_voice_on_startup() -> None:
+    global _voice
+    model_path = os.getenv("PIPER_MODEL_PATH", "")
+    config_path = os.getenv("PIPER_CONFIG_PATH", "") or None
+    if not model_path:
+        print("[piper-service] PIPER_MODEL_PATH not set; voice will not be loaded")
+        return
     try:
-        _load_voice()
+        _voice = PiperVoice.load(model_path, config_path=config_path, use_cuda=False)
+        print(f"[piper-service] voice loaded from {model_path}")
     except Exception as exc:  # noqa: BLE001
-        print(f"[piper-service] failed to preload voice: {exc}")
+        print(f"[piper-service] failed to load voice: {exc}")
 
 
 @app.get("/health")
@@ -50,12 +42,8 @@ def health():
 
 @app.post("/synthesize")
 def synthesize(body: SynthesizeInput):
-    try:
-        voice = _load_voice()
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=f"Piper voice load failed: {exc}") from exc
+    if _voice is None:
+        raise HTTPException(status_code=503, detail="Piper voice not loaded")
 
     text = (body.text or "").strip()
     if not text:
@@ -63,11 +51,10 @@ def synthesize(body: SynthesizeInput):
 
     buffer = io.BytesIO()
     try:
-        with wave.open(buffer, "wb") as wav_file:
-            with _voice_lock:
-                voice.synthesize_wav(text, wav_file)
+        with _synth_lock:
+            with wave.open(buffer, "wb") as wav_file:
+                _voice.synthesize_wav(text, wav_file)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"Piper synthesis failed: {exc}") from exc
 
-    wav_bytes = buffer.getvalue()
-    return {"audioBase64": base64.b64encode(wav_bytes).decode("utf-8")}
+    return {"audioBase64": base64.b64encode(buffer.getvalue()).decode("utf-8")}

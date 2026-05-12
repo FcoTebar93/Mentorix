@@ -43,11 +43,15 @@ export class VoiceTurnCase {
 
     let nextQuestionAudioBase64: string | null = null;
     if (!result.isCompleted && result.nextQuestion?.text) {
-      const tts = await this.ttsService.synthesize({
-        text: result.nextQuestion.text,
-        locale: command.locale,
-      });
-      nextQuestionAudioBase64 = tts.audioBase64;
+      try {
+        const tts = await this.ttsService.synthesize({
+          text: result.nextQuestion.text,
+          locale: command.locale,
+        });
+        nextQuestionAudioBase64 = tts.audioBase64;
+      } catch {
+        nextQuestionAudioBase64 = null;
+      }
     }
 
     return {

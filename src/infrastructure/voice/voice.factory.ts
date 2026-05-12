@@ -174,18 +174,19 @@ class CustomHttpTtsProvider implements ITtsService {
 }
 
 function createSttService(provider: VoiceProvider, env: FactoryEnv): ISttService {
+  const timeoutMs = asNumber(env.STT_TIMEOUT_MS, asNumber(env.VOICE_TIMEOUT_MS, 20000));
   switch (provider) {
     case "openai":
       return new OpenAiSttProvider({
         apiKey: pickFirst(env.OPENAI_API_KEY, env.VOICE_API_KEY),
         baseUrl: pickFirst(env.OPENAI_BASE_URL, env.VOICE_BASE_URL),
         model: pickFirst(env.OPENAI_STT_MODEL, env.STT_MODEL, "whisper-1")!,
-        timeoutMs: asNumber(env.VOICE_TIMEOUT_MS, 20000),
+        timeoutMs,
       });
     case "custom":
       return new CustomHttpSttProvider({
         baseUrl: pickFirst(env.CUSTOM_STT_BASE_URL, env.CUSTOM_VOICE_BASE_URL),
-        timeoutMs: asNumber(env.VOICE_TIMEOUT_MS, 20000),
+        timeoutMs,
       });
     default:
       throw new Error(`UNSUPPORTED_VOICE_PROVIDER: ${provider}`);
@@ -193,6 +194,7 @@ function createSttService(provider: VoiceProvider, env: FactoryEnv): ISttService
 }
 
 function createTtsService(provider: VoiceProvider, env: FactoryEnv): ITtsService {
+  const timeoutMs = asNumber(env.TTS_TIMEOUT_MS, asNumber(env.VOICE_TIMEOUT_MS, 20000));
   switch (provider) {
     case "openai":
       return new OpenAiTtsProvider({
@@ -200,12 +202,12 @@ function createTtsService(provider: VoiceProvider, env: FactoryEnv): ITtsService
         baseUrl: pickFirst(env.OPENAI_BASE_URL, env.VOICE_BASE_URL),
         model: pickFirst(env.OPENAI_TTS_MODEL, env.TTS_MODEL, "gpt-4o-mini-tts")!,
         voice: pickFirst(env.OPENAI_TTS_VOICE, "alloy")!,
-        timeoutMs: asNumber(env.VOICE_TIMEOUT_MS, 20000),
+        timeoutMs,
       });
     case "custom":
       return new CustomHttpTtsProvider({
         baseUrl: pickFirst(env.CUSTOM_TTS_BASE_URL, env.CUSTOM_VOICE_BASE_URL),
-        timeoutMs: asNumber(env.VOICE_TIMEOUT_MS, 20000),
+        timeoutMs,
       });
     default:
       throw new Error(`UNSUPPORTED_VOICE_PROVIDER: ${provider}`);
