@@ -96,7 +96,9 @@ export class GroqProvider implements ILlmService {
       const content = payload?.choices?.[0]?.message?.content;
       if (typeof content !== "string") throw new Error("LLM_EMPTY_RESPONSE");
 
-      const parsed = this.parseJsonFromContent(content);
+      const raw = this.parseJsonFromContent(content);
+      if (!raw || typeof raw !== "object") throw new Error("LLM_INVALID_JSON");
+      const parsed = raw as LlmEvaluationDraft & { __usage?: LlmUsage };
       parsed.__usage = {
         inputTokens: payload?.usage?.prompt_tokens,
         outputTokens: payload?.usage?.completion_tokens,
@@ -111,7 +113,7 @@ export class GroqProvider implements ILlmService {
     }
   }
 
-  private parseJsonFromContent(content: string): any {
+  private parseJsonFromContent(content: string): unknown {
     try {
       return JSON.parse(content);
     } catch {

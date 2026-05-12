@@ -28,6 +28,6 @@ export function createLlmService(cfg: LlmProviderConfig): ILlmService {
     case "mock":
       return new MockProvider();
     default:
-      throw new Error(`UNSUPPORTED_LLM_PROVIDER: ${(cfg as any).provider}`);
+      throw new Error(`UNSUPPORTED_LLM_PROVIDER: ${String(cfg.provider)}`);
   }
 }

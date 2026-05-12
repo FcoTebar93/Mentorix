@@ -60,7 +60,7 @@ export class OpenAiProvider implements ILlmService {
   
       const draft: LlmEvaluationDraft = {
         score: Number(json?.score),
-        dimensionScores: json?.dimensionScores ?? {},
+        dimensionScores: (json?.dimensionScores as Record<string, number> | undefined) ?? {},
         strengths: Array.isArray(json?.strengths) ? json.strengths : [],
         improvements: Array.isArray(json?.improvements) ? json.improvements : [],
         confidence: Number(json?.confidence),
@@ -71,7 +71,7 @@ export class OpenAiProvider implements ILlmService {
       return draft;
     }
   
-    private async callOpenAi(prompt: string): Promise<any> {
+    private async callOpenAi(prompt: string): Promise<Record<string, unknown> & { __usage: LlmUsage }> {
       const url = `${this.cfg.baseUrl ?? "https://api.openai.com"}/v1/chat/completions`;
   
       const controller = new AbortController();
@@ -102,22 +102,24 @@ export class OpenAiProvider implements ILlmService {
         const content = payload?.choices?.[0]?.message?.content;
         if (typeof content !== "string") throw new Error("LLM_EMPTY_RESPONSE");
   
-        let parsed: any;
+        let parsed: unknown;
         try {
           parsed = JSON.parse(content);
         } catch {
           throw new Error("LLM_INVALID_JSON");
         }
-  
-        parsed.__usage = {
+
+        if (!parsed || typeof parsed !== "object") throw new Error("LLM_INVALID_JSON");
+        const draft = parsed as Record<string, unknown> & { __usage?: LlmUsage };
+        draft.__usage = {
           inputTokens: payload?.usage?.prompt_tokens,
           outputTokens: payload?.usage?.completion_tokens,
           totalTokens: payload?.usage?.total_tokens,
           rawModel: payload?.model,
           rawProvider: "openai",
         } satisfies LlmUsage;
-  
-        return parsed;
+
+        return draft as Record<string, unknown> & { __usage: LlmUsage };
       } finally {
         clearTimeout(timeout);
       }
