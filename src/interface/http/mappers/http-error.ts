@@ -57,6 +57,26 @@ export function mapErrorToHttp(error: unknown): HttpErrorShape {
         return { statusCode: 403, code: "ACCESS_LINK_MAX_USES_REACHED", message: "Access link max uses reached" };
       case "SESSION_NOT_FOUND":
         return { statusCode: 404, code: "SESSION_NOT_FOUND", message: "Session not found" };
+      case "SESSION_ALREADY_TERMINATED":
+        return {
+          statusCode: 409,
+          code: "SESSION_ALREADY_TERMINATED",
+          message: "Session was cancelled or terminated and cannot be resumed",
+        };
+      case "TURN_RESUME_INVALID_STATE":
+      case "TURN_RESUME_ANSWER_NOT_FOUND":
+        return {
+          statusCode: 409,
+          code: "TURN_RESUME_INVALID_STATE",
+          message: "Cannot resume turn: session state is inconsistent",
+        };
+      case "TURN_RESUME_QUESTION_MISMATCH":
+        return {
+          statusCode: 409,
+          code: "TURN_RESUME_QUESTION_MISMATCH",
+          message:
+            "Last answer in session belongs to a different question. Please refresh and continue with the current question.",
+        };
       case "TEMPLATE_NOT_FOUND":
         return { statusCode: 404, code: "TEMPLATE_NOT_FOUND", message: "Template not found" };
       case "QUESTION_NOT_FOUND":

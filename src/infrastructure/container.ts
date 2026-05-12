@@ -91,7 +91,7 @@ export function buildContainer() {
   const listSessions = new ListSessionsCase(sessions);
   const getSessionReport = new GetSessionReportCase(sessions);
   const listSessionReports = new ListSessionReportsCase(sessions);
-  const completeTurn = new CompleteTurnCase(submitAnswer, evaluateAnswer, completeSession);
+  const completeTurn = new CompleteTurnCase(sessions, submitAnswer, evaluateAnswer, completeSession);
   const voiceTurn = new VoiceTurnCase(sttService, ttsService, completeTurn);
   const synthesizeQuestionAudio = new SynthesizeQuestionAudioCase(sessions, templates, ttsFactory);
   const realtimeVoice = new RealtimeVoiceCase(
