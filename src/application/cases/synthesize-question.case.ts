@@ -3,6 +3,7 @@ import type {
   InterviewTemplateRepository,
 } from "../ports/repositories.js";
 import type { ITtsServiceFactory } from "../ports/services.js";
+import { extractSpokenQuestion } from "../voice/spoken-question.js";
 
 export interface SynthesizeQuestionAudioCommand {
   sessionId: string;
@@ -34,7 +35,8 @@ export class SynthesizeQuestionAudioCase {
     const locale = this.resolveLocale(template.voiceConfig?.locale, template.language);
 
     const tts = this.ttsFactory.forVoiceConfig(template.voiceConfig);
-    const result = await tts.synthesize({ text: question.text, locale });
+    const spokenText = extractSpokenQuestion(question.text) || question.text;
+    const result = await tts.synthesize({ text: spokenText, locale });
 
     return {
       audioBase64: result.audioBase64,

@@ -7,6 +7,7 @@ import type {
   TtsStreamEvent,
 } from "../ports/services.js";
 import type { CompleteTurnCase } from "./complete-turn.case.js";
+import { extractSpokenQuestion } from "../voice/spoken-question.js";
 
 export type RealtimeVoiceInput = {
   sessionId: string;
@@ -67,8 +68,9 @@ export class RealtimeVoiceCase {
           yield this.mapLlmEvent(tokenEvent);
         }
       }
+      const spokenText = extractSpokenQuestion(nextText) || nextText;
       try {
-        for await (const audioEvent of this.ttsStream.synthesizeStream({ text: nextText, locale: input.locale })) {
+        for await (const audioEvent of this.ttsStream.synthesizeStream({ text: spokenText, locale: input.locale })) {
           yield this.mapTtsEvent(audioEvent);
         }
       } catch {

@@ -12,6 +12,7 @@ const VAD_MIN_SPEECH_MS = 600;
 const VAD_MAX_DURATION_MS = 60_000;
 const VAD_SAMPLE_INTERVAL_MS = 120;
 const AUTO_START_RECORDING_DELAY_MS = 500;
+const REALTIME_TURN_TIMEOUT_MS = 60_000;
 
 type VadStatus = "idle" | "waiting" | "voice" | "silent_pause";
 
@@ -61,6 +62,7 @@ export function TurnComposer({
   const closedByVadRef = useRef<boolean>(false);
   const lastVadStatusRef = useRef<VadStatus>("idle");
   const startRecordingRef = useRef<() => Promise<void>>(async () => {});
+  const realtimeTurnTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const ENABLE_REALTIME_VOICE =
     ((import.meta as { env?: Record<string, string | undefined> }).env?.VITE_VOICE_STREAMING_ENABLED ?? "true") !==
@@ -291,6 +293,7 @@ export function TurnComposer({
     await waitDataChannelOpen(channel);
     await waitRealtimeReady(channel, streamId);
     setRealtimePhase("thinking");
+    armRealtimeTurnTimeout();
     if (ENABLE_REALTIME_CHUNKED_AUDIO) {
       sendRealtimeMessage(channel, {
         type: "input.start",
@@ -456,6 +459,7 @@ export function TurnComposer({
   }
 
   function closeRealtimeConnection() {
+    clearRealtimeTurnTimeout();
     if (dataChannelRef.current) {
       try {
         dataChannelRef.current.close();
@@ -476,6 +480,30 @@ export function TurnComposer({
     setRealtimePhase("idle");
   }
 
+  function clearRealtimeTurnTimeout() {
+    if (realtimeTurnTimeoutRef.current) {
+      clearTimeout(realtimeTurnTimeoutRef.current);
+      realtimeTurnTimeoutRef.current = null;
+    }
+  }
+
+  function armRealtimeTurnTimeout() {
+    clearRealtimeTurnTimeout();
+    realtimeTurnTimeoutRef.current = setTimeout(() => {
+      realtimeTurnTimeoutRef.current = null;
+      closeRealtimeConnection();
+      setLoading(false);
+      setErrorState({
+        title: "El servidor no respondió a tiempo",
+        message:
+          "No se recibió la siguiente pregunta antes del tiempo límite. Puedes reintentar o continuar por texto.",
+        retry: true,
+        fallbackToText: true,
+      });
+      setErrorSource("realtime");
+    }, REALTIME_TURN_TIMEOUT_MS);
+  }
+
   function attachDataChannelListeners(channel: RTCDataChannel) {
     channel.onmessage = (event) => {
       const message = parseJson<RealtimeServerEvent>(String(event.data ?? ""));
@@ -483,14 +511,17 @@ export function TurnComposer({
       const data = message.data as any;
 
       if (message.event === "stt_partial" || message.event === "stt_final") {
+        armRealtimeTurnTimeout();
         setTranscript(data?.text ?? null);
         return;
       }
       if (message.event === "llm_token") {
+        armRealtimeTurnTimeout();
         if (data?.token) setStreamingAnswer((prev) => prev + data.token);
         return;
       }
       if (message.event === "tts_chunk") {
+        armRealtimeTurnTimeout();
         setRealtimePhase("speaking");
         if (data?.audioBase64Chunk) ttsChunksRef.current.push(data.audioBase64Chunk);
         return;
