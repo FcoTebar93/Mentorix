@@ -3,6 +3,8 @@ import { interviewApi } from "../../lib/api/interview";
 import { TurnPanel } from "./TurnPanel";
 import { ErrorBanner } from "../ErrorBanner";
 import { humanizeError, type HumanError } from "../../lib/errors/humanize";
+import { DEFAULT_RUBRIC_DIMENSIONS } from "../../lib/interview/rubric";
+import type { CompleteTurnResult, InterviewSession } from "../../lib/interview/types";
 
 type Props = {
   sessionId: string;
@@ -12,6 +14,7 @@ type Props = {
 
 export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
   const [loading, setLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState("Cargando sesión...");
   const [errorState, setErrorState] = useState<HumanError | null>(null);
   const [question, setQuestion] = useState<{ id: string; text: string } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -21,6 +24,7 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
 
     async function load() {
       setLoading(true);
+      setLoadingMessage("Cargando sesión...");
       setErrorState(null);
 
       try {
@@ -28,8 +32,34 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
         if (!active) return;
 
         const session = res.data;
-        const idx = Math.max(0, session.currentQuestionIndex ?? 0);
-        const currentQuestion = session.questions?.[idx];
+        if (isRecoverableTurnState(session.status)) {
+          setLoadingMessage("Recuperando tu progreso...");
+          const recovered = await recoverInterruptedTurn(session);
+          if (!active) return;
+
+          if (recovered.isCompleted) {
+            onCompleted();
+            return;
+          }
+
+          if (recovered.nextQuestion?.id) {
+            setQuestion({
+              id: recovered.nextQuestion.id,
+              text: recovered.nextQuestion.text ?? "Pregunta actual",
+            });
+            return;
+          }
+
+          setErrorState({
+            title: "No se pudo recuperar el turno",
+            message: "La sesión quedó en un estado intermedio y el servidor no devolvió la siguiente pregunta.",
+            retry: true,
+            fallbackToText: false,
+          });
+          return;
+        }
+
+        const currentQuestion = resolveCurrentQuestion(session);
 
         if (!currentQuestion?.id) {
           setErrorState({
@@ -57,13 +87,13 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
     return () => {
       active = false;
     };
-  }, [sessionId, reloadKey]);
+  }, [sessionId, reloadKey, onCompleted]);
 
   if (loading) {
     return (
       <section className="stack-md">
         <button type="button" onClick={onBack}>Volver</button>
-        <p>Cargando sesión...</p>
+        <p>{loadingMessage}</p>
       </section>
     );
   }
@@ -90,4 +120,30 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
       />
     </section>
   );
+}
+
+function isRecoverableTurnState(status: string): boolean {
+  return status === "EVALUATING" || status === "FEEDBACKING";
+}
+
+function resolveCurrentQuestion(session: InterviewSession) {
+  const idx = Math.max(0, session.currentQuestionIndex ?? 0);
+  return session.questions?.[idx];
+}
+
+async function recoverInterruptedTurn(session: InterviewSession): Promise<CompleteTurnResult> {
+  const answers = session.answers ?? [];
+  const lastAnswer = answers[answers.length - 1];
+  if (!lastAnswer?.questionId || !lastAnswer.text) {
+    throw new Error("TURN_RESUME_INVALID_STATE");
+  }
+
+  const res = await interviewApi.completeTurn(session.id, {
+    questionId: lastAnswer.questionId,
+    source: lastAnswer.source,
+    text: lastAnswer.text,
+    rubricDimensions: DEFAULT_RUBRIC_DIMENSIONS,
+  });
+
+  return res.data;
 }

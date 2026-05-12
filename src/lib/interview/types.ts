@@ -49,12 +49,19 @@ export type InterviewQuestion = {
   text: string;
 };
 
+export type InterviewAnswer = {
+  questionId: string;
+  source: "text" | "voice";
+  text: string;
+};
+
 export type InterviewSession = {
   id: string;
   status: string;
   currentQuestionIndex: number;
   totalQuestions: number;
   questions: InterviewQuestion[];
+  answers?: InterviewAnswer[];
 };
 
 export type CompleteTurnResult = {
