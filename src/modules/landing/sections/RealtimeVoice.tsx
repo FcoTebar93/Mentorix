@@ -1,5 +1,6 @@
 import { CheckIcon } from "../components/CheckIcon";
 import { CodeBlock } from "../components/CodeBlock";
+import { LandingReveal } from "../components/LandingReveal";
 import { useLandingCopy } from "../i18n/LocaleContext";
 
 export function RealtimeVoice() {
@@ -8,25 +9,29 @@ export function RealtimeVoice() {
   return (
     <section id="devs" className="landing-section" aria-labelledby="realtime-title">
       <div className="landing-container landing-showcase__inner landing-showcase__inner--reverse">
-        <div className="landing-showcase__copy">
-          <span className="landing-section__eyebrow">{t.realtime.eyebrow}</span>
-          <h2 id="realtime-title">{t.realtime.title}</h2>
-          <p>{t.realtime.body}</p>
-          <ul className="landing-checklist">
-            {t.realtime.checklist.map((item) => (
-              <li key={item}>
-                <CheckIcon />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <LandingReveal from="right">
+          <div className="landing-showcase__copy">
+            <span className="landing-section__eyebrow">{t.realtime.eyebrow}</span>
+            <h2 id="realtime-title">{t.realtime.title}</h2>
+            <p>{t.realtime.body}</p>
+            <ul className="landing-checklist">
+              {t.realtime.checklist.map((item) => (
+                <li key={item}>
+                  <CheckIcon />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </LandingReveal>
 
-        <div>
-          <CodeBlock filename={t.realtime.codeFilename}>
-            <RealtimeEventsSnippet />
-          </CodeBlock>
-        </div>
+        <LandingReveal from="left" delayMs={80}>
+          <div>
+            <CodeBlock filename={t.realtime.codeFilename}>
+              <RealtimeEventsSnippet />
+            </CodeBlock>
+          </div>
+        </LandingReveal>
       </div>
     </section>
   );

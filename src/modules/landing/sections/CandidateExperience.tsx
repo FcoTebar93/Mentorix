@@ -1,3 +1,4 @@
+import { LandingReveal } from "../components/LandingReveal";
 import { useLandingCopy } from "../i18n/LocaleContext";
 
 const WAVE_BARS = 18;
@@ -12,14 +13,17 @@ export function CandidateExperience() {
       aria-labelledby="candidate-title"
     >
       <div className="landing-container landing-showcase__inner">
-        <div className="landing-showcase__copy">
-          <span className="landing-section__eyebrow">{t.candidate.eyebrow}</span>
-          <h2 id="candidate-title">{t.candidate.title}</h2>
-          <p>{t.candidate.body}</p>
-          <p className="landing-candidate__foot">{t.candidate.foot}</p>
-        </div>
+        <LandingReveal from="left">
+          <div className="landing-showcase__copy">
+            <span className="landing-section__eyebrow">{t.candidate.eyebrow}</span>
+            <h2 id="candidate-title">{t.candidate.title}</h2>
+            <p>{t.candidate.body}</p>
+            <p className="landing-candidate__foot">{t.candidate.foot}</p>
+          </div>
+        </LandingReveal>
 
-        <div className="landing-candidate-mock" role="img" aria-label="Candidate interview screen preview">
+        <LandingReveal from="right" delayMs={90}>
+          <div className="landing-candidate-mock" role="img" aria-label="Candidate interview screen preview">
           <aside className="landing-candidate-mock__aside">
             <div className="landing-candidate-mock__brand">
               <strong>{mock.brandTitle}</strong>
@@ -49,7 +53,8 @@ export function CandidateExperience() {
             </div>
             <p className="landing-candidate-mock__hint">{mock.hint}</p>
           </div>
-        </div>
+          </div>
+        </LandingReveal>
       </div>
     </section>
   );

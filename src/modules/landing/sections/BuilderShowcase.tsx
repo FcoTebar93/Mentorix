@@ -1,3 +1,4 @@
+import { LandingReveal } from "../components/LandingReveal";
 import { useLandingCopy } from "../i18n/LocaleContext";
 
 export function BuilderShowcase() {
@@ -11,7 +12,8 @@ export function BuilderShowcase() {
       aria-labelledby="builder-title"
     >
       <div className="landing-container landing-showcase__inner">
-        <div className="landing-showcase__copy">
+        <LandingReveal from="left">
+          <div className="landing-showcase__copy">
           <span className="landing-section__eyebrow">{t.builder.eyebrow}</span>
           <h2 id="builder-title">{t.builder.title}</h2>
           <p>{t.builder.body}</p>
@@ -25,9 +27,11 @@ export function BuilderShowcase() {
               </li>
             ))}
           </ol>
-        </div>
+          </div>
+        </LandingReveal>
 
-        <div className="landing-builder-mock" role="img" aria-label="Interview template form preview">
+        <LandingReveal from="right" delayMs={80}>
+          <div className="landing-builder-mock" role="img" aria-label="Interview template form preview">
           <div className="landing-field">
             <span className="landing-field__label">{mock.title.label}</span>
             <span className="landing-field__value">{mock.title.value}</span>
@@ -63,7 +67,8 @@ export function BuilderShowcase() {
             <span className="landing-field__label">{mock.rubric.label}</span>
             <span className="landing-field__value">{mock.rubric.value}</span>
           </div>
-        </div>
+          </div>
+        </LandingReveal>
       </div>
     </section>
   );

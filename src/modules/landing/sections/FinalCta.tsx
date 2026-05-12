@@ -1,3 +1,4 @@
+import { LandingReveal } from "../components/LandingReveal";
 import { PrimaryCta } from "../components/PrimaryCta";
 import { SecondaryCta } from "../components/SecondaryCta";
 import { useLandingCopy } from "../i18n/LocaleContext";
@@ -17,16 +18,20 @@ export function FinalCta({ onPrimary, onSecondary }: Props) {
       aria-labelledby="final-title"
     >
       <div className="landing-container">
-        <h2 id="final-title" className="landing-final__title">
-          {t.final.title}
-        </h2>
-        <p className="landing-final__sub">{t.final.subtitle}</p>
-        <div className="landing-final__ctas">
-          <PrimaryCta onClick={onPrimary} withArrow>
-            {t.final.ctaPrimary}
-          </PrimaryCta>
-          <SecondaryCta onClick={onSecondary}>{t.final.ctaSecondary}</SecondaryCta>
-        </div>
+        <LandingReveal from="up">
+          <>
+            <h2 id="final-title" className="landing-final__title">
+              {t.final.title}
+            </h2>
+            <p className="landing-final__sub">{t.final.subtitle}</p>
+            <div className="landing-final__ctas">
+              <PrimaryCta onClick={onPrimary} withArrow>
+                {t.final.ctaPrimary}
+              </PrimaryCta>
+              <SecondaryCta onClick={onSecondary}>{t.final.ctaSecondary}</SecondaryCta>
+            </div>
+          </>
+        </LandingReveal>
       </div>
     </section>
   );

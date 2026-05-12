@@ -101,6 +101,53 @@
   border-radius: var(--radius-button);
 }
 
+/* Scroll reveals (see LandingReveal.tsx) */
+.landing-reveal {
+  --landing-reveal-shift: 40px;
+  opacity: 0;
+  transition:
+    opacity 0.62s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.68s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--landing-reveal-delay, 0ms);
+}
+
+.landing-reveal--from-up {
+  transform: translate3d(0, calc(var(--landing-reveal-shift) * 0.65), 0);
+}
+
+.landing-reveal--from-down {
+  transform: translate3d(0, calc(var(--landing-reveal-shift) * -0.55), 0);
+}
+
+.landing-reveal--from-left {
+  transform: translate3d(calc(-1 * var(--landing-reveal-shift)), 0, 0);
+}
+
+.landing-reveal--from-right {
+  transform: translate3d(var(--landing-reveal-shift), 0, 0);
+}
+
+.landing-reveal--visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.landing-features__grid > .landing-reveal {
+  min-height: 0;
+}
+
+.landing-features__grid > .landing-reveal .landing-feature {
+  height: 100%;
+}
+
+.landing-stack__grid > .landing-reveal {
+  min-height: 0;
+}
+
+.landing-stack__grid > .landing-reveal .landing-stack__col {
+  height: 100%;
+}
+
 .landing-container {
   width: 100%;
   max-width: var(--container-max);
@@ -581,6 +628,29 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-24);
+  animation: landing-hero-in-left 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes landing-hero-in-left {
+  from {
+    opacity: 0;
+    transform: translate3d(-40px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes landing-hero-in-right {
+  from {
+    opacity: 0;
+    transform: translate3d(40px, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .landing-hero__title {
@@ -615,6 +685,7 @@
 
 .landing-hero__visual {
   position: relative;
+  animation: landing-hero-in-right 0.8s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .landing-monitor {
