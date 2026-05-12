@@ -1,7 +1,7 @@
 import { buildTestContainer } from "../../infrastructure/test-container.js";
 import { buildServer } from "./server.js";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { authApi } from "../../modules/auth/auth.api.js";
+import { authApi } from "../../client/features/auth/auth.api.js";
 
 describe("HTTP auth routes", { timeout: 15000 }, () => {
   it("POST /v1/auth/login returns 200 with accessToken and user for valid credentials", async () => {
