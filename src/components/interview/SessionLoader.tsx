@@ -15,6 +15,7 @@ type Props = {
 export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
   const [loading, setLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState("Cargando sesión...");
+  const [loadingDetail, setLoadingDetail] = useState("Estamos buscando el último punto guardado.");
   const [errorState, setErrorState] = useState<HumanError | null>(null);
   const [question, setQuestion] = useState<{ id: string; text: string } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -25,6 +26,7 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
     async function load() {
       setLoading(true);
       setLoadingMessage("Cargando sesión...");
+      setLoadingDetail("Estamos buscando el último punto guardado.");
       setErrorState(null);
 
       try {
@@ -34,6 +36,9 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
         const session = res.data;
         if (isRecoverableTurnState(session.status)) {
           setLoadingMessage("Recuperando tu progreso...");
+          setLoadingDetail(
+            "Detectamos que el turno anterior se quedó a medias. Vamos a cerrarlo con tu última respuesta guardada."
+          );
           const recovered = await recoverInterruptedTurn(session);
           if (!active) return;
 
@@ -93,7 +98,10 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
     return (
       <section className="stack-md">
         <button type="button" onClick={onBack}>Volver</button>
-        <p>{loadingMessage}</p>
+        <div className="session-loading-card" role="status" aria-live="polite">
+          <span className="status-pill is-pulsing">{loadingMessage}</span>
+          <p>{loadingDetail}</p>
+        </div>
       </section>
     );
   }

@@ -44,6 +44,7 @@ export function TurnComposer({
   const [streamingAnswer, setStreamingAnswer] = useState<string>("");
   const [realtimePhase, setRealtimePhase] = useState<"idle" | "listening" | "thinking" | "speaking">("speaking");
   const [vadStatus, setVadStatus] = useState<VadStatus>("idle");
+  const [questionAudioUnavailable, setQuestionAudioUnavailable] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -77,9 +78,9 @@ export function TurnComposer({
   );
   const canRecord = !loading && !isRecording && realtimePhase !== "speaking";
   const statusText = useMemo(() => {
-    if (realtimePhase === "speaking") return "AI hablando...";
+    if (realtimePhase === "speaking") return "Entrevistador hablando...";
     if (loading) return "Procesando respuesta...";
-    if (realtimePhase === "thinking") return "Pensando...";
+    if (realtimePhase === "thinking") return "Preparando siguiente pregunta...";
     if (isRecording) {
       switch (vadStatus) {
         case "voice":
@@ -93,6 +94,21 @@ export function TurnComposer({
     }
     return "Listo para responder";
   }, [realtimePhase, loading, isRecording, vadStatus]);
+  const statusDetail = useMemo(() => {
+    if (realtimePhase === "speaking") {
+      return "La grabación empezará automáticamente cuando termine el audio. También puedes leer la pregunta en pantalla.";
+    }
+    if (loading || realtimePhase === "thinking") {
+      return "Estamos transcribiendo, evaluando y preparando la siguiente pregunta. Si algo se queda bloqueado, mostraremos una opción de reintento.";
+    }
+    if (isRecording) {
+      return vadStatus === "silent_pause"
+        ? "Si ya terminaste, puedes detener la grabación manualmente."
+        : "Habla con naturalidad; detectaremos el silencio final.";
+    }
+    if (answerAudioBase64) return "Audio capturado. Envíalo para continuar o vuelve a grabar si quieres corregirlo.";
+    return "Puedes responder por voz o cambiar a texto si el audio no va fino.";
+  }, [answerAudioBase64, loading, realtimePhase, isRecording, vadStatus]);
 
   useEffect(() => {
     return () => {
@@ -128,14 +144,19 @@ export function TurnComposer({
 
     async function playQuestionAudio() {
       try {
+        setQuestionAudioUnavailable(false);
         const res = await interviewApi.synthesizeQuestionAudio({ sessionId, questionId });
         if (!active) return;
         const audio = new Audio(`data:audio/mpeg;base64,${res.data.audioBase64}`);
         questionAudioRef.current = audio;
         audio.onended = handleQuestionAudioFinished;
-        audio.onerror = handleQuestionAudioFinished;
+        audio.onerror = () => {
+          setQuestionAudioUnavailable(true);
+          handleQuestionAudioFinished();
+        };
         await audio.play();
       } catch {
+        if (active) setQuestionAudioUnavailable(true);
         handleQuestionAudioFinished();
       }
     }
@@ -582,8 +603,13 @@ export function TurnComposer({
   return (
     <section className="interview-panel">
       <header className="interview-panel-header">
-        <h2 className="title-reset">Entrevista en curso</h2>
-        <span className={`status-pill ${loading || isRecording ? "is-pulsing" : ""}`}>{statusText}</span>
+        <div>
+          <h2 className="title-reset">Entrevista en curso</h2>
+          <p className="composer-hint">{statusDetail}</p>
+        </div>
+        <span className={`status-pill ${loading || isRecording || realtimePhase !== "idle" ? "is-pulsing" : ""}`}>
+          {statusText}
+        </span>
       </header>
 
       <section className="chat-container">
@@ -594,11 +620,22 @@ export function TurnComposer({
           </div>
         </article>
 
+        {questionAudioUnavailable ? (
+          <article className="message-row message-ai">
+            <div className="message-bubble level-2">
+              <p className="message-meta">Audio no disponible</p>
+              <p className="text-reset">
+                No pude reproducir la pregunta en voz alta. Puedes leerla aquí y responder igualmente.
+              </p>
+            </div>
+          </article>
+        ) : null}
+
         {answerAudioBase64 ? (
           <article className="message-row message-user">
             <div className="message-bubble level-2">
               <p className="message-meta">Tu respuesta</p>
-              <p className="text-reset">Audio capturado y listo para enviar.</p>
+              <p className="text-reset">Audio capturado. Envíalo para continuar o graba de nuevo si quieres corregirlo.</p>
             </div>
           </article>
         ) : null}
@@ -641,7 +678,11 @@ export function TurnComposer({
         <div className="row-actions">
           {!isRecording ? (
             <button type="button" onClick={startRecording} disabled={!canRecord}>
-              {realtimePhase === "speaking" ? "Esperando al AI..." : "Grabar respuesta"}
+              {realtimePhase === "speaking"
+                ? "Esperando pregunta..."
+                : answerAudioBase64
+                ? "Grabar de nuevo"
+                : "Grabar respuesta"}
             </button>
           ) : (
             <button type="button" onClick={stopRecording} disabled={loading}>
