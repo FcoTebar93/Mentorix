@@ -6,8 +6,13 @@
     "verbatimModuleSyntax": true,
     "strict": true,
     "rootDir": "src",
+    "baseUrl": "src",
+    "ignoreDeprecations": "6.0",
     "outDir": "dist",
-    "types": ["node", "vitest/globals", "react", "react-dom"],
+    "paths": {
+      "@client/*": ["client/*"]
+    },
+    "types": ["node", "vitest/globals", "react", "react-dom", "vite/client"],
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "sourceMap": true,
     "declaration": true,
