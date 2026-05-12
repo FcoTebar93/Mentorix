@@ -1,10 +1,12 @@
 import base64
+import io
 import os
-import subprocess
-import tempfile
+import threading
+import wave
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from piper import PiperVoice
 
 
 class SynthesizeInput(BaseModel):
@@ -14,48 +16,58 @@ class SynthesizeInput(BaseModel):
 
 app = FastAPI(title="mentorix-piper-service")
 
+_voice: PiperVoice | None = None
+_voice_lock = threading.Lock()
+
+
+def _load_voice() -> PiperVoice:
+    global _voice
+    if _voice is not None:
+        return _voice
+    with _voice_lock:
+        if _voice is not None:
+            return _voice
+        model_path = os.getenv("PIPER_MODEL_PATH", "")
+        config_path = os.getenv("PIPER_CONFIG_PATH", "") or None
+        if not model_path:
+            raise RuntimeError("PIPER_MODEL_PATH is required")
+        _voice = PiperVoice.load(model_path, config_path=config_path, use_cuda=False)
+        return _voice
+
+
+@app.on_event("startup")
+def _warm_up_voice() -> None:
+    try:
+        _load_voice()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[piper-service] failed to preload voice: {exc}")
+
 
 @app.get("/health")
 def health():
-    return {"ok": True}
+    return {"ok": _voice is not None, "modelLoaded": _voice is not None}
 
 
 @app.post("/synthesize")
 def synthesize(body: SynthesizeInput):
-    model_path = os.getenv("PIPER_MODEL_PATH", "")
-    config_path = os.getenv("PIPER_CONFIG_PATH", "")
-    piper_bin = os.getenv("PIPER_BIN", "piper")
+    try:
+        voice = _load_voice()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Piper voice load failed: {exc}") from exc
 
-    if not model_path:
-        raise HTTPException(status_code=500, detail="PIPER_MODEL_PATH is required")
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
 
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as output_file:
-        cmd = [
-            piper_bin,
-            "--model",
-            model_path,
-            "--output_file",
-            output_file.name,
-        ]
-        if config_path:
-            cmd += ["--config", config_path]
+    buffer = io.BytesIO()
+    try:
+        with wave.open(buffer, "wb") as wav_file:
+            with _voice_lock:
+                voice.synthesize_wav(text, wav_file)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Piper synthesis failed: {exc}") from exc
 
-        try:
-            completed = subprocess.run(
-                cmd,
-                input=body.text.encode("utf-8"),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=False,
-            )
-        except FileNotFoundError as exc:
-            raise HTTPException(status_code=500, detail="Piper binary not found") from exc
-
-        if completed.returncode != 0:
-            raise HTTPException(status_code=500, detail=f"Piper synthesis failed: {completed.stderr.decode('utf-8', errors='ignore')}")
-
-        output_file.flush()
-        with open(output_file.name, "rb") as file_handle:
-            wav_bytes = file_handle.read()
-
+    wav_bytes = buffer.getvalue()
     return {"audioBase64": base64.b64encode(wav_bytes).decode("utf-8")}
