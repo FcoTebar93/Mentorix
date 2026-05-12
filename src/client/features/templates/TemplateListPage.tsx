@@ -1,0 +1,83 @@
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTemplatesApi } from "../../app/providers/ApiClientsProvider";
+import type { InterviewTemplate } from "./types";
+
+export function TemplateListPage() {
+  const navigate = useNavigate();
+  const templatesApi = useTemplatesApi();
+  const [items, setItems] = useState<InterviewTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await templatesApi.list();
+      setItems(res.data ?? []);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "No se pudieron cargar entrevistas");
+    } finally {
+      setLoading(false);
+    }
+  }, [templatesApi]);
+
+  async function onDelete(templateId: string) {
+    try {
+      await templatesApi.remove(templateId);
+      await load();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "No se pudo eliminar");
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <h2>Entrevistas</h2>
+        <button type="button" onClick={() => navigate("/admin/templates/new")}>
+          Nueva entrevista
+        </button>
+      </div>
+
+      {loading ? <p>Cargando...</p> : null}
+      {errorMsg ? <p className="error-text">{errorMsg}</p> : null}
+
+      {!loading && !errorMsg && !items.length ? <p>No hay entrevistas todavía.</p> : null}
+
+      <div className="card-grid">
+        {items.map((t) => (
+          <article key={t.id} className="card">
+            <strong>{t.title}</strong>
+            <span>Rol: {t.role}</span>
+            <span>Tipo: {t.templateType === "question_set" ? "Preguntas fijas" : "Dinámica"}</span>
+            <span>Nivel: {t.level}</span>
+            <span>Idioma: {t.language}</span>
+            <span>Preguntas: {t.totalQuestions}</span>
+            <span>Estado: {t.isArchived ? "Archivada" : "Activa"}</span>
+
+            <div className="row-actions">
+              <button type="button" onClick={() => navigate(`/admin/templates/${t.id}/edit`)}>
+                Editar
+              </button>
+              <button type="button" onClick={() => navigate(`/admin/templates/${t.id}/links`)}>
+                Links
+              </button>
+              <button type="button" onClick={() => navigate(`/admin/templates/${t.id}/results`)}>
+                Resultados
+              </button>
+              <button type="button" onClick={() => onDelete(t.id)}>
+                Eliminar/Archivar
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
