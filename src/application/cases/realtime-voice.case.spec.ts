@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { CompleteTurnCase } from "./complete-turn.case.js";
 import { RealtimeVoiceCase } from "./realtime-voice.case.js";
 
 const sttStub = {
@@ -31,7 +32,7 @@ function makeCompleteTurnStub(nextQuestion: { id: string; text: string; source?:
         nextQuestion,
       };
     },
-  } as any;
+  } as unknown as CompleteTurnCase;
 }
 
 describe("RealtimeVoiceCase", () => {
