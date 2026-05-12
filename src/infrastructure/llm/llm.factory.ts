@@ -99,11 +99,15 @@ export class EnvLlmServiceFactory implements ILlmServiceFactory {
     const resolvedProvider = provider === "groq" ? "groq" : provider;
     const fallbackModel =
       resolvedProvider === "groq" ? "llama-3.3-70b-versatile" : "gpt-4o-mini";
+    const configuredModel =
+      resolvedProvider === "groq" && config.model === "gpt-4o-mini"
+        ? undefined
+        : config.model;
     return {
       provider: resolvedProvider,
       apiKey: this.resolveApiKey(resolvedProvider),
       baseUrl: this.resolveBaseUrl(resolvedProvider),
-      model: config.model || this.env.LLM_MODEL || fallbackModel,
+      model: configuredModel || this.env.LLM_MODEL || fallbackModel,
       temperature: Number.isFinite(config.temperature)
         ? config.temperature
         : asNumber(this.env.LLM_TEMPERATURE, 0.2),

@@ -68,10 +68,15 @@ const TemplateParamsSchema = z.object({
   templateId: z.string().min(1),
 });
 
+function defaultModelForProvider(provider: z.infer<typeof LlmProviderSchema>): string {
+  return provider === "groq" ? "llama-3.3-70b-versatile" : "gpt-4o-mini";
+}
+
 export const registerTemplateRoutes: RegisterRoutes = (app, container) => {
+  const llmProvider = LlmProviderSchema.parse((process.env.LLM_PROVIDER ?? "openai").toLowerCase());
   const llmConfigFromEnv = {
-    provider: LlmProviderSchema.parse((process.env.LLM_PROVIDER ?? "openai").toLowerCase()),
-    model: process.env.LLM_MODEL ?? "gpt-4o-mini",
+    provider: llmProvider,
+    model: process.env.LLM_MODEL ?? defaultModelForProvider(llmProvider),
     temperature: Number(process.env.LLM_TEMPERATURE ?? "0.2"),
     maxTokensPerTurn: Number(process.env.LLM_MAX_TOKENS ?? "700"),
   };
