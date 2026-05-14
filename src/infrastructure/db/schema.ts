@@ -4,6 +4,7 @@ export const interviewTemplatesTable = pgTable("interview_templates", {
   id: text("id").primaryKey(),
   ownerUserId: text("owner_user_id").notNull(),
   templateType: text("template_type").notNull().default("dynamic"),
+  interviewMode: text("interview_mode").notNull().default("voice"),
   title: text("title").notNull(),
   role: text("role").notNull(),
   level: text("level").notNull(),
@@ -36,6 +37,7 @@ export const interviewSessionsTable = pgTable("interview_sessions", {
   id: text("id").primaryKey(),
   templateId: text("template_id").notNull(),
   ownerUserId: text("owner_user_id").notNull(),
+  interviewMode: text("interview_mode").notNull().default("voice"),
 
   participant: jsonb("participant").notNull(),
   entryPoint: jsonb("entry_point").notNull(),

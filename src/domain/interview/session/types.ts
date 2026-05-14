@@ -12,6 +12,7 @@ export type InterviewSessionStatus =
 
 export type ParticipantType = "authenticated" | "guest";
 export type SessionEntryMode = "direct" | "shared_link";
+export type InterviewMode = "text" | "voice";
 
 export interface SessionParticipant {
   type: ParticipantType;
@@ -66,6 +67,7 @@ export interface InterviewSessionProps {
   id: UUID;
   templateId: UUID;
   ownerUserId: UUID;
+  interviewMode?: InterviewMode;
   participant: SessionParticipant;
   entryPoint: SessionEntryPoint;
   status: InterviewSessionStatus;

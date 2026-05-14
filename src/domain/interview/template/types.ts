@@ -36,11 +36,13 @@ export interface VoiceInterviewConfig {
 }
 
 export type InterviewTemplateType = "dynamic" | "question_set";
+export type InterviewMode = "text" | "voice";
 
 export interface InterviewTemplate {
   id: UUID;
   ownerUserId: UUID;
   templateType?: InterviewTemplateType;
+  interviewMode?: InterviewMode;
   title: string;
   role: string;
   level: "junior" | "mid" | "senior";

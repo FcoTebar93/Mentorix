@@ -2,6 +2,7 @@ import { InterviewSession } from "../../domain/interview/session/session.aggrega
 import type { InterviewSessionProps, SessionQuestion } from "../../domain/interview/session/types.js";
 import type { InterviewAccessLinkRepository, InterviewSessionRepository, InterviewTemplateRepository } from "../ports/repositories.js";
 import type { Clock, IdGenerator, ILlmServiceFactory, TokenService } from "../ports/services.js";
+import { generateDistinctQuestion } from "../llm/question-novelty.js";
 
 export interface StartFromLinkCommand {
   rawToken: string;
@@ -68,7 +69,7 @@ export class StartSessionFromLinkCase {
       const llm = this.llmFactory.forTemplate(template.llmConfig);
       let generated: { text: string };
       try {
-        generated = await llm.generateQuestion({
+        generated = await generateDistinctQuestion(llm, {
           role: template.role,
           level: template.level,
           language: template.language,
@@ -88,6 +89,7 @@ export class StartSessionFromLinkCase {
       id: this.ids.uuid(),
       templateId: template.id,
       ownerUserId: template.ownerUserId,
+      interviewMode: template.interviewMode ?? "voice",
       participant: {
         type: "guest",
         guestAlias: command.guestAlias,

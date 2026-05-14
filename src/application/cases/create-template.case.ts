@@ -5,6 +5,7 @@ import type { Clock, IdGenerator } from "../ports/services.js";
 export interface CreateTemplateCommand {
   ownerUserId: string;
   templateType: InterviewTemplate["templateType"];
+  interviewMode: InterviewTemplate["interviewMode"];
   title: string;
   role: string;
   level: "junior" | "mid" | "senior";
@@ -31,6 +32,7 @@ export class CreateTemplateCase {
       id: this.ids.uuid(),
       ownerUserId: command.ownerUserId,
       templateType: command.templateType,
+      interviewMode: command.interviewMode,
       title: command.title,
       role: command.role,
       level: command.level,

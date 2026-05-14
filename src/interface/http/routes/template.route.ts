@@ -15,6 +15,7 @@ const LlmProviderSchema = z.enum([
 ]);
 
 const BaseTemplateSchema = z.object({
+  interviewMode: z.enum(["text", "voice"]),
   title: z.string().min(1),
   role: z.string().min(1),
   level: z.enum(["junior", "mid", "senior"]),
@@ -152,6 +153,7 @@ export const registerTemplateRoutes: RegisterRoutes = (app, container) => {
       const template = await container.useCases.createTemplate.execute({
         ownerUserId: request.user!.id,
         templateType: parsedBody.data.templateType,
+        interviewMode: parsedBody.data.interviewMode,
         title: parsedBody.data.title,
         role: parsedBody.data.role,
         level: parsedBody.data.level,

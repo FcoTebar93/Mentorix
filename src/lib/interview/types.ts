@@ -58,6 +58,7 @@ export type InterviewAnswer = {
 export type InterviewSession = {
   id: string;
   status: string;
+  interviewMode?: "text" | "voice";
   currentQuestionIndex: number;
   totalQuestions: number;
   questions: InterviewQuestion[];
