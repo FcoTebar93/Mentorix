@@ -2,14 +2,13 @@ import { PrimaryCta } from "../components/PrimaryCta";
 import { SecondaryCta } from "../components/SecondaryCta";
 import { HighlightBadge } from "../components/HighlightBadge";
 import { BarGraph } from "../components/BarGraph";
+import { WaveformBars } from "../components/WaveformBars";
 import { useLandingCopy } from "../i18n/LocaleContext";
 
 type Props = {
   onPrimary: () => void;
   onSecondary: () => void;
 };
-
-const WAVE_BARS = 24;
 
 export function Hero({ onPrimary, onSecondary }: Props) {
   const t = useLandingCopy();
@@ -61,17 +60,7 @@ function MonitorMock() {
         </span>
         <p className="landing-monitor__question">{t.hero.monitorQuestion}</p>
 
-        <div className="landing-monitor__waveform" aria-hidden="true">
-          {Array.from({ length: WAVE_BARS }).map((_, idx) => (
-            <span
-              key={idx}
-              style={{
-                animationDelay: `${(idx % 8) * 90}ms`,
-                height: `${20 + ((idx * 13) % 60)}%`,
-              }}
-            />
-          ))}
-        </div>
+        <WaveformBars />
 
         <div className="landing-monitor__transcript">
           <strong>{t.hero.monitorTranscriptLabel}</strong>

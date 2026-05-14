@@ -1,7 +1,6 @@
 import { LandingReveal } from "../components/LandingReveal";
+import { WaveformBars } from "../components/WaveformBars";
 import { useLandingCopy } from "../i18n/LocaleContext";
-
-const WAVE_BARS = 18;
 
 export function CandidateExperience() {
   const t = useLandingCopy();
@@ -40,17 +39,7 @@ export function CandidateExperience() {
           <div className="landing-candidate-mock__main">
             <span className="landing-monitor__question-label">{mock.questionLabel}</span>
             <p className="landing-monitor__question">{mock.question}</p>
-            <div className="landing-monitor__waveform" aria-hidden="true">
-              {Array.from({ length: WAVE_BARS }).map((_, idx) => (
-                <span
-                  key={idx}
-                  style={{
-                    animationDelay: `${(idx % 6) * 110}ms`,
-                    height: `${30 + ((idx * 17) % 50)}%`,
-                  }}
-                />
-              ))}
-            </div>
+            <WaveformBars />
             <p className="landing-candidate-mock__hint">{mock.hint}</p>
           </div>
           </div>
