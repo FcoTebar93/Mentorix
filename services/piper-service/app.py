@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 import subprocess
 import sys
@@ -22,6 +23,11 @@ _model_ready: bool = False
 _synth_lock = threading.Lock()
 
 
+def _log(event: str, **details):
+    payload = {"service": "piper", "event": event, **details}
+    print(f"[voice-debug] {json.dumps(payload, ensure_ascii=True)}", flush=True)
+
+
 def _resolve_model_path() -> str:
     candidate = os.getenv("PIPER_MODEL_PATH", "").strip()
     if candidate and os.path.exists(candidate):
@@ -29,7 +35,7 @@ def _resolve_model_path() -> str:
     return ""
 
 
-def _run_piper_cli(text: str, output_path: str) -> None:
+def _run_piper_cli(text: str, output_path: str) -> float:
     if not _model_path:
         raise RuntimeError("Piper model path is not configured")
 
@@ -42,15 +48,12 @@ def _run_piper_cli(text: str, output_path: str) -> None:
         "-f",
         output_path,
     ]
-    proc = subprocess.run(
-        cmd,
-        input=text.encode("utf-8"),
-        capture_output=True,
-        check=False,
-    )
+    started = time.perf_counter()
+    proc = subprocess.run(cmd, input=text.encode("utf-8"), capture_output=True, check=False)
     if proc.returncode != 0:
         detail = proc.stderr.decode("utf-8", errors="ignore").strip() or "unknown error"
         raise RuntimeError(f"piper exited with code {proc.returncode}: {detail}")
+    return time.perf_counter() - started
 
 
 @app.on_event("startup")
@@ -64,9 +67,7 @@ def _warm_up_on_startup() -> None:
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         tmp_path = tmp.name
     try:
-        started = time.time()
-        _run_piper_cli("Hola", tmp_path)
-        elapsed = time.time() - started
+        elapsed = _run_piper_cli("Hola", tmp_path)
         _model_ready = True
         print(f"[piper-service] warm-up complete in {elapsed:.2f}s")
     except Exception as exc:  # noqa: BLE001
@@ -92,15 +93,23 @@ def synthesize(body: SynthesizeInput):
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
 
+    started = time.perf_counter()
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         tmp_path = tmp.name
 
     try:
         with _synth_lock:
-            _run_piper_cli(text, tmp_path)
+            cli_duration = _run_piper_cli(text, tmp_path)
         with open(tmp_path, "rb") as wav_file:
             audio_bytes = wav_file.read()
     except Exception as exc:  # noqa: BLE001
+        _log(
+            "tts_failed",
+            locale=body.locale,
+            textLength=len(text),
+            durationMs=round((time.perf_counter() - started) * 1000, 2),
+            error=str(exc),
+        )
         raise HTTPException(status_code=500, detail=f"Piper synthesis failed: {exc}") from exc
     finally:
         try:
@@ -108,4 +117,12 @@ def synthesize(body: SynthesizeInput):
         except OSError:
             pass
 
+    _log(
+        "tts_completed",
+        locale=body.locale,
+        textLength=len(text),
+        audioBytes=len(audio_bytes),
+        cliDurationMs=round(cli_duration * 1000, 2),
+        durationMs=round((time.perf_counter() - started) * 1000, 2),
+    )
     return {"audioBase64": base64.b64encode(audio_bytes).decode("utf-8")}

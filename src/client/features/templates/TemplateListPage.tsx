@@ -56,6 +56,7 @@ export function TemplateListPage() {
             <strong>{t.title}</strong>
             <span>Rol: {t.role}</span>
             <span>Tipo: {t.templateType === "question_set" ? "Preguntas fijas" : "Dinámica"}</span>
+            <span>Modo: {t.interviewMode === "voice" ? "Voz" : "Texto"}</span>
             <span>Nivel: {t.level}</span>
             <span>Idioma: {t.language}</span>
             <span>Preguntas: {t.totalQuestions}</span>

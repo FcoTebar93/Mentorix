@@ -1,5 +1,6 @@
 import type { CompleteTurnCase } from "./complete-turn.case.js";
 import type { ISttService, ITtsService } from "../ports/services.js";
+import { TimingTrace } from "../../lib/observability/timing.js";
 
 export interface VoiceTurnCommand {
   sessionId: string;
@@ -23,41 +24,66 @@ export class VoiceTurnCase {
   ) {}
 
   async execute(command: VoiceTurnCommand): Promise<VoiceTurnResult> {
-    const stt = await this.sttService.transcribe({
-      audioBase64: command.answerAudioBase64,
-      locale: command.locale,
-    });
-
-    const transcript = stt.text?.trim();
-    if (!transcript) {
-      throw new Error("VOICE_TRANSCRIPTION_EMPTY");
-    }
-
-    const result = await this.completeTurn.execute({
+    const trace = new TimingTrace("voice_turn", {
       sessionId: command.sessionId,
       questionId: command.questionId,
-      source: "voice",
-      text: transcript,
-      rubricDimensions: command.rubricDimensions,
+      locale: command.locale,
+      rubricDimensions: command.rubricDimensions.length,
     });
 
-    let nextQuestionAudioBase64: string | null = null;
-    if (!result.isCompleted && result.nextQuestion?.text) {
-      try {
-        const tts = await this.ttsService.synthesize({
-          text: result.nextQuestion.text,
+    try {
+      const stt = await trace.step("stt", () =>
+        this.sttService.transcribe({
+          audioBase64: command.answerAudioBase64,
           locale: command.locale,
-        });
-        nextQuestionAudioBase64 = tts.audioBase64;
-      } catch {
-        nextQuestionAudioBase64 = null;
-      }
-    }
+        })
+      );
 
-    return {
-      transcript,
-      result,
-      nextQuestionAudioBase64,
-    };
+      const transcript = stt.text?.trim();
+      if (!transcript) {
+        throw new Error("VOICE_TRANSCRIPTION_EMPTY");
+      }
+
+      const result = await trace.step("complete_turn", () =>
+        this.completeTurn.execute({
+          sessionId: command.sessionId,
+          questionId: command.questionId,
+          source: "voice",
+          text: transcript,
+          rubricDimensions: command.rubricDimensions,
+        })
+      );
+
+      let nextQuestionAudioBase64: string | null = null;
+      if (!result.isCompleted && result.nextQuestion?.text) {
+        try {
+          const tts = await trace.step("tts_next_question", () =>
+            this.ttsService.synthesize({
+              text: result.nextQuestion!.text,
+              locale: command.locale,
+            })
+          );
+          nextQuestionAudioBase64 = tts.audioBase64;
+        } catch {
+          nextQuestionAudioBase64 = null;
+          trace.mark("tts_next_question_unavailable");
+        }
+      }
+
+      trace.end({
+        isCompleted: result.isCompleted,
+        nextQuestionGenerated: Boolean(result.nextQuestion?.text),
+        nextQuestionAudioAvailable: Boolean(nextQuestionAudioBase64),
+      });
+
+      return {
+        transcript,
+        result,
+        nextQuestionAudioBase64,
+      };
+    } catch (error) {
+      trace.end({ failed: true, error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
   }
 }

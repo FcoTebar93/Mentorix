@@ -3,6 +3,7 @@ import type { InterviewSessionRepository } from "../ports/repositories.js";
 import type { SubmitAnswerCase } from "./submit.case.js";
 import type { EvaluateAnswerCase } from "./evaluate.case.js";
 import type { CompleteSessionCase } from "./complete.case.js";
+import { TimingTrace } from "../../lib/observability/timing.js";
 
 export interface CompleteTurnCommand {
   sessionId: string;
@@ -29,42 +30,69 @@ export class CompleteTurnCase {
   ) {}
 
   async execute(command: CompleteTurnCommand): Promise<CompleteTurnResult> {
-    const current = await this.sessions.getById(command.sessionId);
-    if (!current) throw new Error("SESSION_NOT_FOUND");
-
-    if (current.status === "COMPLETED") {
-      return this.buildResult(current);
-    }
-    if (current.status === "CANCELLED" || current.status === "FAILED") {
-      throw new Error("SESSION_ALREADY_TERMINATED");
-    }
-
-    const lastAnswerForQuestion = this.findLastAnswerForQuestion(current, command.questionId);
-
-    if (current.status === "ASKING") {
-      await this.submitAnswer.execute({
-        sessionId: command.sessionId,
-        questionId: command.questionId,
-        source: command.source,
-        text: command.text,
-      });
-    } else if (current.status === "EVALUATING" || current.status === "FEEDBACKING") {
-      this.assertResumeForSameTurn(current, command, lastAnswerForQuestion);
-    }
-
-    const evaluationExists = this.hasEvaluationForLastAnswer(current);
-    if (current.status === "ASKING" || (current.status === "EVALUATING" && !evaluationExists)) {
-      await this.evaluateAnswer.execute({
-        sessionId: command.sessionId,
-        rubricDimensions: command.rubricDimensions,
-      });
-    }
-
-    const session = await this.completeSession.execute({
+    const trace = new TimingTrace("complete_turn", {
       sessionId: command.sessionId,
+      questionId: command.questionId,
+      source: command.source,
+      rubricDimensions: command.rubricDimensions.length,
     });
 
-    return this.buildResult(session);
+    try {
+      const current = await trace.step("load_session", () => this.sessions.getById(command.sessionId));
+      if (!current) throw new Error("SESSION_NOT_FOUND");
+
+      if (current.status === "COMPLETED") {
+        const result = this.buildResult(current);
+        trace.end({ status: current.status, shortCircuit: true });
+        return result;
+      }
+      if (current.status === "CANCELLED" || current.status === "FAILED") {
+        throw new Error("SESSION_ALREADY_TERMINATED");
+      }
+
+      const lastAnswerForQuestion = this.findLastAnswerForQuestion(current, command.questionId);
+
+      if (current.status === "ASKING") {
+        await trace.step("submit_answer", () =>
+          this.submitAnswer.execute({
+            sessionId: command.sessionId,
+            questionId: command.questionId,
+            source: command.source,
+            text: command.text,
+          })
+        );
+      } else if (current.status === "EVALUATING" || current.status === "FEEDBACKING") {
+        this.assertResumeForSameTurn(current, command, lastAnswerForQuestion);
+      }
+
+      const evaluationExists = this.hasEvaluationForLastAnswer(current);
+      if (current.status === "ASKING" || (current.status === "EVALUATING" && !evaluationExists)) {
+        await trace.step("evaluate_answer", () =>
+          this.evaluateAnswer.execute({
+            sessionId: command.sessionId,
+            rubricDimensions: command.rubricDimensions,
+          })
+        );
+      }
+
+      const session = await trace.step("complete_session", () =>
+        this.completeSession.execute({
+          sessionId: command.sessionId,
+        })
+      );
+
+      const result = this.buildResult(session);
+      trace.end({
+        status: session.status,
+        isCompleted: result.isCompleted,
+        nextQuestionGenerated: Boolean(result.nextQuestion),
+      });
+
+      return result;
+    } catch (error) {
+      trace.end({ failed: true, error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
   }
 
   private buildResult(session: InterviewSessionProps): CompleteTurnResult {

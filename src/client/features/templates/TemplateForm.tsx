@@ -30,6 +30,9 @@ export function TemplateForm({
   const [templateType, setTemplateType] = useState<CreateTemplateInput["templateType"]>(
     initial?.templateType ?? "dynamic"
   );
+  const [interviewMode, setInterviewMode] = useState<CreateTemplateInput["interviewMode"]>(
+    initial?.interviewMode ?? "voice"
+  );
   const [title, setTitle] = useState(initial?.title ?? "");
   const [role, setRole] = useState(initial?.role ?? "");
   const [level, setLevel] = useState<CreateTemplateInput["level"]>(initial?.level ?? "mid");
@@ -124,6 +127,7 @@ export function TemplateForm({
 
     const payload: CreateTemplateInput = {
       templateType,
+      interviewMode,
       title: title.trim(),
       role: role.trim(),
       level,
@@ -208,6 +212,14 @@ export function TemplateForm({
       <select value={templateType} onChange={(e) => setTemplateType(e.target.value as CreateTemplateInput["templateType"])}>
         <option value="dynamic">Dinámica (prompt + LLM)</option>
         <option value="question_set">Preguntas fijas</option>
+      </select>
+
+      <select
+        value={interviewMode}
+        onChange={(e) => setInterviewMode(e.target.value as CreateTemplateInput["interviewMode"])}
+      >
+        <option value="voice">Entrevista por voz</option>
+        <option value="text">Entrevista por texto</option>
       </select>
 
       <input placeholder="Título" value={title} onChange={(e) => setTitle(e.target.value)} />

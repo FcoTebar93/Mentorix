@@ -6,6 +6,7 @@ import type {
   VoiceProvider,
 } from "../../application/ports/services.js";
 import type { VoiceInterviewConfig } from "../../domain/interview/template/types.js";
+import { TimingTrace } from "../../lib/observability/timing.js";
 
 type FactoryEnv = NodeJS.ProcessEnv;
 
@@ -48,6 +49,13 @@ class OpenAiSttProvider implements ISttService {
     if (!this.cfg.apiKey) throw new Error("VOICE_FEATURE_NOT_AVAILABLE");
 
     const audioBytes = Buffer.from(input.audioBase64, "base64");
+    const trace = new TimingTrace("stt_provider_call", {
+      provider: "openai",
+      model: this.cfg.model,
+      locale: input.locale,
+      timeoutMs: this.cfg.timeoutMs,
+      audioBytes: audioBytes.length,
+    });
     const blob = new Blob([audioBytes], { type: "audio/webm" });
     const form = new FormData();
     form.set("file", blob, "answer.webm");
@@ -57,19 +65,27 @@ class OpenAiSttProvider implements ISttService {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
     try {
-      const response = await fetch(`${this.cfg.baseUrl ?? "https://api.openai.com"}/v1/audio/transcriptions`, {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          Authorization: `Bearer ${this.cfg.apiKey}`,
-        },
-        body: form,
-      });
+      const response = await trace.step("http_request", () =>
+        fetch(`${this.cfg.baseUrl ?? "https://api.openai.com"}/v1/audio/transcriptions`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${this.cfg.apiKey}`,
+          },
+          body: form,
+        })
+      );
+      trace.mark("http_response", { statusCode: response.status });
       if (!response.ok) {
         throw new Error("VOICE_FEATURE_NOT_AVAILABLE");
       }
-      const payload = (await response.json()) as { text?: string };
-      return { text: payload.text?.trim() ?? "" };
+      const payload = await trace.step("parse_response", async () => response.json() as Promise<{ text?: string }>);
+      const text = payload.text?.trim() ?? "";
+      trace.end({ transcriptLength: text.length });
+      return { text };
+    } catch (error) {
+      trace.end({ failed: true, error: error instanceof Error ? error.message : String(error) });
+      throw error;
     } finally {
       clearTimeout(timeout);
     }
@@ -89,28 +105,44 @@ class OpenAiTtsProvider implements ITtsService {
 
   async synthesize(input: { text: string; locale: string }): Promise<{ audioBase64: string }> {
     if (!this.cfg.apiKey) throw new Error("VOICE_FEATURE_NOT_AVAILABLE");
+    const trace = new TimingTrace("tts_provider_call", {
+      provider: "openai",
+      model: this.cfg.model,
+      voice: this.cfg.voice,
+      locale: input.locale,
+      timeoutMs: this.cfg.timeoutMs,
+      textLength: input.text.length,
+    });
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
     try {
-      const response = await fetch(`${this.cfg.baseUrl ?? "https://api.openai.com"}/v1/audio/speech`, {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.cfg.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.cfg.model,
-          voice: this.cfg.voice,
-          input: input.text,
-          format: "mp3",
-        }),
-      });
+      const response = await trace.step("http_request", () =>
+        fetch(`${this.cfg.baseUrl ?? "https://api.openai.com"}/v1/audio/speech`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.cfg.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: this.cfg.model,
+            voice: this.cfg.voice,
+            input: input.text,
+            format: "mp3",
+          }),
+        })
+      );
+      trace.mark("http_response", { statusCode: response.status });
       if (!response.ok) {
         throw new Error("VOICE_FEATURE_NOT_AVAILABLE");
       }
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      return { audioBase64: Buffer.from(bytes).toString("base64") };
+      const bytes = await trace.step("read_audio_buffer", async () => new Uint8Array(await response.arrayBuffer()));
+      const audioBase64 = Buffer.from(bytes).toString("base64");
+      trace.end({ audioBytes: bytes.length, audioBase64Length: audioBase64.length });
+      return { audioBase64 };
+    } catch (error) {
+      trace.end({ failed: true, error: error instanceof Error ? error.message : String(error) });
+      throw error;
     } finally {
       clearTimeout(timeout);
     }
@@ -127,18 +159,33 @@ class CustomHttpSttProvider implements ISttService {
 
   async transcribe(input: { audioBase64: string; locale: string }): Promise<{ text: string }> {
     if (!this.cfg.baseUrl) throw new Error("CUSTOM_STT_PROVIDER_NOT_IMPLEMENTED");
+    const trace = new TimingTrace("stt_provider_call", {
+      provider: "custom",
+      locale: input.locale,
+      timeoutMs: this.cfg.timeoutMs,
+      endpoint: `${this.cfg.baseUrl}/transcribe`,
+      audioBase64Length: input.audioBase64.length,
+    });
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
     try {
-      const response = await fetch(`${this.cfg.baseUrl}/transcribe`, {
-        method: "POST",
-        signal: controller.signal,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
+      const response = await trace.step("http_request", () =>
+        fetch(`${this.cfg.baseUrl}/transcribe`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        })
+      );
+      trace.mark("http_response", { statusCode: response.status });
       if (!response.ok) throw new Error("VOICE_FEATURE_NOT_AVAILABLE");
-      const payload = (await response.json()) as { text?: string };
-      return { text: payload.text?.trim() ?? "" };
+      const payload = await trace.step("parse_response", async () => response.json() as Promise<{ text?: string }>);
+      const text = payload.text?.trim() ?? "";
+      trace.end({ transcriptLength: text.length });
+      return { text };
+    } catch (error) {
+      trace.end({ failed: true, error: error instanceof Error ? error.message : String(error) });
+      throw error;
     } finally {
       clearTimeout(timeout);
     }
@@ -155,18 +202,35 @@ class CustomHttpTtsProvider implements ITtsService {
 
   async synthesize(input: { text: string; locale: string }): Promise<{ audioBase64: string }> {
     if (!this.cfg.baseUrl) throw new Error("CUSTOM_TTS_PROVIDER_NOT_IMPLEMENTED");
+    const trace = new TimingTrace("tts_provider_call", {
+      provider: "custom",
+      locale: input.locale,
+      timeoutMs: this.cfg.timeoutMs,
+      endpoint: `${this.cfg.baseUrl}/synthesize`,
+      textLength: input.text.length,
+    });
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
     try {
-      const response = await fetch(`${this.cfg.baseUrl}/synthesize`, {
-        method: "POST",
-        signal: controller.signal,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
+      const response = await trace.step("http_request", () =>
+        fetch(`${this.cfg.baseUrl}/synthesize`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        })
+      );
+      trace.mark("http_response", { statusCode: response.status });
       if (!response.ok) throw new Error("VOICE_FEATURE_NOT_AVAILABLE");
-      const payload = (await response.json()) as { audioBase64?: string };
-      return { audioBase64: payload.audioBase64 ?? "" };
+      const payload = await trace.step("parse_response", async () =>
+        response.json() as Promise<{ audioBase64?: string }>
+      );
+      const audioBase64 = payload.audioBase64 ?? "";
+      trace.end({ audioBase64Length: audioBase64.length });
+      return { audioBase64 };
+    } catch (error) {
+      trace.end({ failed: true, error: error instanceof Error ? error.message : String(error) });
+      throw error;
     } finally {
       clearTimeout(timeout);
     }

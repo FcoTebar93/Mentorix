@@ -1,5 +1,6 @@
 export type TemplateLevel = "junior" | "mid" | "senior";
 export type TemplateType = "dynamic" | "question_set";
+export type InterviewMode = "text" | "voice";
 
 export type RubricDimension = {
   key: string;
@@ -11,6 +12,7 @@ export type InterviewTemplate = {
   id: string;
   ownerUserId: string;
   templateType: TemplateType;
+  interviewMode?: InterviewMode;
   title: string;
   role: string;
   level: TemplateLevel;
