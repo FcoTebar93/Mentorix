@@ -9,7 +9,11 @@ type Props = {
   sessionId: string;
   questionId: string;
   questionText: string;
-  onAdvance: (next: { questionId: string; questionText: string }) => void;
+  onAdvance: (next: {
+    questionId: string;
+    questionText: string;
+    prefetchedQuestionAudioBase64?: string | null;
+  }) => void;
   onCompleted: () => void;
 };
 

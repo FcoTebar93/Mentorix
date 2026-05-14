@@ -15,14 +15,19 @@ import {
 import { useVoiceActivity } from "./turn-composer/voice-activity.js";
 
 const AUTO_START_RECORDING_DELAY_MS = 500;
-const REALTIME_TURN_TIMEOUT_MS = 60_000;
+const REALTIME_TURN_TIMEOUT_MS = 120_000;
 
 type Props = {
   sessionId: string;
   initialQuestionId: string;
   initialQuestionText?: string;
+  prefetchedQuestionAudioBase64?: string | null;
   onCompleted: () => void;
-  onAdvance?: (next: { questionId: string; questionText: string }) => void;
+  onAdvance?: (next: {
+    questionId: string;
+    questionText: string;
+    prefetchedQuestionAudioBase64?: string | null;
+  }) => void;
   onSwitchToText?: () => void;
 };
 
@@ -30,6 +35,7 @@ export function TurnComposer({
   sessionId,
   initialQuestionId,
   initialQuestionText,
+  prefetchedQuestionAudioBase64,
   onCompleted,
   onAdvance,
   onSwitchToText,
@@ -43,7 +49,6 @@ export function TurnComposer({
   const [loading, setLoading] = useState(false);
   const [errorState, setErrorState] = useState<HumanError | null>(null);
   const [errorSource, setErrorSource] = useState<"recording" | "submit" | "realtime" | null>(null);
-  const [streamingAnswer, setStreamingAnswer] = useState<string>("");
   const [realtimePhase, setRealtimePhase] = useState<"idle" | "listening" | "thinking" | "speaking">("speaking");
   const [questionAudioUnavailable, setQuestionAudioUnavailable] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -58,6 +63,7 @@ export function TurnComposer({
   const closedByVadRef = useRef<boolean>(false);
   const startRecordingRef = useRef<() => Promise<void>>(async () => {});
   const realtimeTurnTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readyNextQuestionAudioRef = useRef<string | null>(null);
 
   const { vadStatus, startVad, stopVad } = useVoiceActivity(mediaRecorderRef, closedByVadRef);
 
@@ -137,9 +143,11 @@ export function TurnComposer({
     async function playQuestionAudio() {
       try {
         setQuestionAudioUnavailable(false);
-        const res = await interviewApi.synthesizeQuestionAudio({ sessionId, questionId });
+        const audioBase64 =
+          prefetchedQuestionAudioBase64 ??
+          (await interviewApi.synthesizeQuestionAudio({ sessionId, questionId })).data.audioBase64;
         if (!active) return;
-        const audio = new Audio(`data:audio/mpeg;base64,${res.data.audioBase64}`);
+        const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`);
         questionAudioRef.current = audio;
         audio.onended = handleQuestionAudioFinished;
         audio.onerror = () => {
@@ -163,7 +171,7 @@ export function TurnComposer({
       }
       stopQuestionAudio();
     };
-  }, [sessionId, questionId]);
+  }, [sessionId, questionId, prefetchedQuestionAudioBase64]);
 
   async function startRecording() {
     if (mediaRecorderRef.current?.state === "recording") return;
@@ -224,7 +232,7 @@ export function TurnComposer({
     setErrorState(null);
     setErrorSource(null);
     setLoading(true);
-    setStreamingAnswer("");
+    readyNextQuestionAudioRef.current = null;
 
     try {
       if (ENABLE_REALTIME_VOICE) {
@@ -262,11 +270,11 @@ export function TurnComposer({
       setQuestionId(nextId);
       setQuestionText(nextText);
       setAnswerAudioBase64(null);
-      onAdvance?.({ questionId: nextId, questionText: nextText });
-      if (res.data.nextQuestionAudioBase64) {
-        const audio = new Audio(`data:audio/mpeg;base64,${res.data.nextQuestionAudioBase64}`);
-        void audio.play().catch(() => undefined);
-      }
+        onAdvance?.({
+          questionId: nextId,
+          questionText: nextText,
+          prefetchedQuestionAudioBase64: res.data.nextQuestionAudioBase64,
+        });
       return;
     }
     setErrorState({
@@ -434,8 +442,6 @@ export function TurnComposer({
           setTranscript(message.data.text);
           return;
         case "llm_token":
-          armRealtimeTurnTimeout();
-          setStreamingAnswer((prev) => prev + message.data.token);
           return;
         case "tts_chunk":
           armRealtimeTurnTimeout();
@@ -445,8 +451,7 @@ export function TurnComposer({
         case "tts_done": {
           const audioBase64 = ttsChunksRef.current.join("");
           if (!audioBase64) return;
-          const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`);
-          void audio.play().catch(() => undefined);
+          readyNextQuestionAudioRef.current = audioBase64;
           return;
         }
         case "turn_completed":
@@ -461,7 +466,12 @@ export function TurnComposer({
             setQuestionId(nextId);
             setQuestionText(nextText);
             setAnswerAudioBase64(null);
-            onAdvance?.({ questionId: nextId, questionText: nextText });
+            onAdvance?.({
+              questionId: nextId,
+              questionText: nextText,
+              prefetchedQuestionAudioBase64: readyNextQuestionAudioRef.current,
+            });
+            readyNextQuestionAudioRef.current = null;
           }
           return;
         case "error":
@@ -532,15 +542,6 @@ export function TurnComposer({
             <div className="message-bubble level-2">
               <p className="message-meta">TranscripciÃ³n</p>
               <pre className="code-block">{transcript}</pre>
-            </div>
-          </article>
-        ) : null}
-
-        {streamingAnswer ? (
-          <article className="message-row message-ai">
-            <div className="message-bubble level-2">
-              <p className="message-meta">Respuesta en streaming</p>
-              <p className="text-reset">{streamingAnswer}</p>
             </div>
           </article>
         ) : null}
