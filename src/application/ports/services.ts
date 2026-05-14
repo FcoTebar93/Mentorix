@@ -43,7 +43,7 @@ export interface LlmEvaluationDraft {
 export interface EvaluateAnswerInput {
     question: string;
     answer: { text: string };
-    rubric: { dimensions: { key: string; weight: number }[] };
+    rubric: { dimensions: { key: string; weight: number; description?: string }[] };
     language?: string;
 }
 
@@ -53,10 +53,28 @@ export interface GenerateQuestionInput {
     language: string;
     previousQuestions: string[];
     prompt?: string;
+    rejectedQuestions?: string[];
+}
+
+export interface QuestionSimilarityInput {
+    candidateQuestion: string;
+    previousQuestions: string[];
+    role: string;
+    level: "junior" | "mid" | "senior";
+    language: string;
+    prompt?: string;
+}
+
+export interface QuestionSimilarityResult {
+    isTooSimilar: boolean;
+    matchedQuestion?: string;
+    reason?: string;
+    overlapScore?: number;
 }
 
 export interface ILlmService {
     generateQuestion(input: GenerateQuestionInput): Promise<{ text: string; usage?: LlmUsage }>;
+    judgeQuestionSimilarity?(input: QuestionSimilarityInput): Promise<QuestionSimilarityResult>;
     evaluateAnswer(input: EvaluateAnswerInput): Promise<LlmEvaluationDraft>;
 }
 
