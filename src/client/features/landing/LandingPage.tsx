@@ -10,7 +10,6 @@ import { CandidateExperience } from "./sections/CandidateExperience";
 import { AccessLinksShowcase } from "./sections/AccessLinksShowcase";
 import { TechStack } from "./sections/TechStack";
 import { FinalCta } from "./sections/FinalCta";
-import { Footer } from "./sections/Footer";
 import "./landing.css";
 
 type Props = {
@@ -36,7 +35,6 @@ export function LandingPage({ onLogin, onCreate, onCandidateAccess }: Props) {
           <TechStack />
           <FinalCta onPrimary={onCreate} onSecondary={onCandidateAccess} />
         </main>
-        <Footer />
       </div>
     </LocaleProvider>
   );
