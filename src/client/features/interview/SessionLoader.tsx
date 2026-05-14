@@ -20,6 +20,7 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
   const [loadingDetail, setLoadingDetail] = useState("Estamos buscando el último punto guardado.");
   const [errorState, setErrorState] = useState<HumanError | null>(null);
   const [question, setQuestion] = useState<{ id: string; text: string } | null>(null);
+  const [interviewMode, setInterviewMode] = useState<"text" | "voice">("voice");
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
         if (!active) return;
 
         const session = res.data;
+        setInterviewMode(session.interviewMode ?? "voice");
         if (isRecoverableTurnState(session.status)) {
           setLoadingMessage("Recuperando tu progreso...");
           setLoadingDetail(
@@ -126,6 +128,7 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
         sessionId={sessionId}
         initialQuestionId={question.id}
         initialQuestionText={question.text}
+        interviewMode={interviewMode}
         onCompleted={onCompleted}
       />
     </section>

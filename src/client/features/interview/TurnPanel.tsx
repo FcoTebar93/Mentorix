@@ -10,11 +10,17 @@ type Progress = {
   total: number | null;
 };
 
+type AdvancePayload = {
+  questionId: string;
+  questionText: string;
+  prefetchedQuestionAudioBase64?: string | null;
+};
+
 type Props = {
   sessionId: string;
   initialQuestionId: string;
   initialQuestionText?: string;
-  defaultMode?: TurnMode;
+  interviewMode?: TurnMode;
   onCompleted: () => void;
 };
 
@@ -22,14 +28,14 @@ export function TurnPanel({
   sessionId,
   initialQuestionId,
   initialQuestionText,
-  defaultMode = "text",
+  interviewMode = "voice",
   onCompleted,
 }: Props) {
   const interviewApi = useInterviewApi();
-  const [mode, setMode] = useState<TurnMode>(defaultMode);
   const [current, setCurrent] = useState({
     id: initialQuestionId,
     text: initialQuestionText ?? "Pregunta actual",
+    prefetchedQuestionAudioBase64: null as string | null,
   });
   const [progress, setProgress] = useState<Progress>({ index: 0, total: null });
 
@@ -56,8 +62,12 @@ export function TurnPanel({
     };
   }, [sessionId, interviewApi]);
 
-  function advance(next: { questionId: string; questionText: string }) {
-    setCurrent({ id: next.questionId, text: next.questionText });
+  function advance(next: AdvancePayload) {
+    setCurrent({
+      id: next.questionId,
+      text: next.questionText,
+      prefetchedQuestionAudioBase64: next.prefetchedQuestionAudioBase64 ?? null,
+    });
     setProgress((prev) => ({ ...prev, index: prev.index + 1 }));
   }
 
@@ -73,25 +83,12 @@ export function TurnPanel({
         <span className="turn-progress-badge" aria-live="polite">
           {progressLabel}
         </span>
-        <nav className="turn-mode-toggle row-actions" aria-label="Modo de respuesta">
-          <button
-            type="button"
-            className={mode === "text" ? "is-active" : ""}
-            onClick={() => setMode("text")}
-          >
-            Texto
-          </button>
-          <button
-            type="button"
-            className={mode === "voice" ? "is-active" : ""}
-            onClick={() => setMode("voice")}
-          >
-            Voz
-          </button>
-        </nav>
+        <span className="turn-progress-badge" aria-live="polite">
+          {interviewMode === "voice" ? "Modo voz" : "Modo texto"}
+        </span>
       </header>
 
-      {mode === "text" ? (
+      {interviewMode === "text" ? (
         <TextTurnComposer
           key={`text:${current.id}`}
           sessionId={sessionId}
@@ -106,9 +103,9 @@ export function TurnPanel({
           sessionId={sessionId}
           initialQuestionId={current.id}
           initialQuestionText={current.text}
+          prefetchedQuestionAudioBase64={current.prefetchedQuestionAudioBase64}
           onAdvance={advance}
           onCompleted={onCompleted}
-          onSwitchToText={() => setMode("text")}
         />
       )}
     </section>
