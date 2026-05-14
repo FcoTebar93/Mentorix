@@ -378,4 +378,213 @@ describe("Use case flow integration", () => {
     expect(capturedPrompt).toBe(expectedPrompt);
     expect(completed.questions[1].text).toBe("generated with prompt");
   });
+
+  it("regenerates when the provider returns an exact repeated question", async () => {
+    const sessions = new InMemoryInterviewSessionRepository();
+    const templates = new InMemoryInterviewTemplateRepository();
+    const ids = new SystemIdGenerator();
+    const clock = new SystemClock();
+
+    await templates.save({
+      id: "t-repeat-exact-1",
+      ownerUserId: "u1",
+      templateType: "dynamic",
+      title: "Repeat Protection",
+      role: "Backend Engineer",
+      level: "mid",
+      language: "es",
+      totalQuestions: 3,
+      prompt: "Evita solapamientos de tema.",
+      questions: [],
+      rubric: {
+        dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+        passThreshold: 70,
+      },
+      llmConfig: {
+        provider: "openai",
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        maxTokensPerTurn: 600,
+      },
+      isArchived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const rejectedSnapshots: string[][] = [];
+    let generationCallCount = 0;
+    const llmStub: ILlmService = {
+      async generateQuestion(input: GenerateQuestionInput): Promise<{ text: string }> {
+        generationCallCount += 1;
+        rejectedSnapshots.push([...(input.rejectedQuestions ?? [])]);
+        return generationCallCount === 1
+          ? { text: "Pregunta inicial" }
+          : { text: "¿Como diseñarias la invalidacion de sesiones en varios nodos?" };
+      },
+      async evaluateAnswer(_input: EvaluateAnswerInput): Promise<LlmEvaluationDraft> {
+        return {
+          score: 80,
+          dimensionScores: { architecture: 80 },
+          strengths: ["ok"],
+          improvements: ["more depth"],
+          confidence: 0.9,
+        };
+      },
+    };
+
+    const llmFactory: ILlmServiceFactory = {
+      forTemplate() {
+        return llmStub;
+      },
+    };
+
+    const completeCase = new CompleteSessionCase(sessions, templates, llmFactory, ids, clock);
+
+    await sessions.save({
+      id: "s-repeat-exact-1",
+      templateId: "t-repeat-exact-1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "Fran" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "FEEDBACKING",
+      currentQuestionIndex: 1,
+      totalQuestions: 3,
+      questions: [
+        {
+          id: "q1",
+          index: 1,
+          text: "Pregunta inicial",
+          generatedByModel: "manual",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    });
+
+    const completed = await completeCase.execute({ sessionId: "s-repeat-exact-1" });
+
+    expect(generationCallCount).toBe(2);
+    expect(rejectedSnapshots[0]).toEqual([]);
+    expect(rejectedSnapshots[1]).toEqual(["Pregunta inicial"]);
+    expect(completed.questions[1].text).toBe(
+      "¿Como diseñarias la invalidacion de sesiones en varios nodos?"
+    );
+  });
+
+  it("regenerates when a semantically similar question is flagged by the LLM", async () => {
+    const sessions = new InMemoryInterviewSessionRepository();
+    const templates = new InMemoryInterviewTemplateRepository();
+    const ids = new SystemIdGenerator();
+    const clock = new SystemClock();
+
+    await templates.save({
+      id: "t-repeat-semantic-1",
+      ownerUserId: "u1",
+      templateType: "dynamic",
+      title: "Semantic Repeat Protection",
+      role: "Backend Engineer",
+      level: "mid",
+      language: "es",
+      totalQuestions: 3,
+      prompt: "Haz preguntas claramente distintas.",
+      questions: [],
+      rubric: {
+        dimensions: [{ key: "architecture", weight: 1, description: "Depth" }],
+        passThreshold: 70,
+      },
+      llmConfig: {
+        provider: "openai",
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        maxTokensPerTurn: 600,
+      },
+      isArchived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const rejectedSnapshots: string[][] = [];
+    const semanticCandidates = [
+      "¿Como evitarias condiciones de carrera durante el login bajo alta carga?",
+      "¿Como diseñarias la revocacion de tokens entre varios nodos?",
+    ];
+    let generationIndex = 0;
+    const llmStub: ILlmService = {
+      async generateQuestion(input: GenerateQuestionInput): Promise<{ text: string }> {
+        rejectedSnapshots.push([...(input.rejectedQuestions ?? [])]);
+        const text = semanticCandidates[generationIndex] ?? semanticCandidates[semanticCandidates.length - 1];
+        generationIndex += 1;
+        return { text };
+      },
+      async judgeQuestionSimilarity(input) {
+        if (input.candidateQuestion.includes("condiciones de carrera")) {
+          return {
+            isTooSimilar: true,
+            matchedQuestion:
+              "¿Como manejarias la concurrencia en el sistema de autenticacion para evitar bloqueos y mejorar el rendimiento?",
+            reason: "same_core_topic",
+            overlapScore: 0.92,
+          };
+        }
+
+        return { isTooSimilar: false, overlapScore: 0.18 };
+      },
+      async evaluateAnswer(_input: EvaluateAnswerInput): Promise<LlmEvaluationDraft> {
+        return {
+          score: 80,
+          dimensionScores: { architecture: 80 },
+          strengths: ["ok"],
+          improvements: ["more depth"],
+          confidence: 0.9,
+        };
+      },
+    };
+
+    const llmFactory: ILlmServiceFactory = {
+      forTemplate() {
+        return llmStub;
+      },
+    };
+
+    const completeCase = new CompleteSessionCase(sessions, templates, llmFactory, ids, clock);
+
+    await sessions.save({
+      id: "s-repeat-semantic-1",
+      templateId: "t-repeat-semantic-1",
+      ownerUserId: "u1",
+      participant: { type: "guest", guestAlias: "Fran" },
+      entryPoint: { mode: "shared_link", accessLinkId: "l1" },
+      status: "FEEDBACKING",
+      currentQuestionIndex: 1,
+      totalQuestions: 3,
+      questions: [
+        {
+          id: "q1",
+          index: 1,
+          text: "¿Como manejarias la concurrencia en el sistema de autenticacion para evitar bloqueos y mejorar el rendimiento?",
+          generatedByModel: "manual",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      answers: [],
+      evaluations: [],
+      feedbackItems: [],
+      startedAt: new Date().toISOString(),
+      version: 1,
+    });
+
+    const completed = await completeCase.execute({ sessionId: "s-repeat-semantic-1" });
+
+    expect(rejectedSnapshots[0]).toEqual([]);
+    expect(rejectedSnapshots[1]).toEqual([
+      "¿Como evitarias condiciones de carrera durante el login bajo alta carga?",
+    ]);
+    expect(completed.questions[1].text).toBe(
+      "¿Como diseñarias la revocacion de tokens entre varios nodos?"
+    );
+  });
 });
