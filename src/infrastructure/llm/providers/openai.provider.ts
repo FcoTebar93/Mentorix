@@ -4,6 +4,8 @@ import type {
     ILlmService,
     LlmEvaluationDraft,
     LlmUsage,
+    QuestionSimilarityInput,
+    QuestionSimilarityResult,
 } from "../../../application/ports/services.js";
   
 type OpenAiConfig = {
@@ -22,12 +24,19 @@ export class OpenAiProvider implements ILlmService {
       this.assertApiKey();
   
       const prompt = [
-        "You generate interview questions.",
+        "You are a technical interviewer.",
+        "Ask exactly one concise next interview question.",
+        "Do not provide feedback, explanations, praise, or commentary.",
+        "The next question must be materially different from every previous or rejected question.",
+        "Treat questions about the same core topic, subsystem, tradeoff, or competency as duplicates even if the wording changes.",
         input.prompt ? `Interview Prompt: ${input.prompt}` : "",
         `Role: ${input.role}`,
         `Level: ${input.level}`,
         `Language: ${input.language}`,
         `Previous: ${JSON.stringify(input.previousQuestions)}`,
+        input.rejectedQuestions?.length
+          ? `Rejected for similarity: ${JSON.stringify(input.rejectedQuestions)}`
+          : "",
         'Return ONLY JSON: {"text":"..."}',
       ].join("\n");
   
@@ -40,6 +49,42 @@ export class OpenAiProvider implements ILlmService {
       return {
         text,
         usage: json.__usage,
+      };
+    }
+
+    async judgeQuestionSimilarity(
+      input: QuestionSimilarityInput
+    ): Promise<QuestionSimilarityResult> {
+      this.assertApiKey();
+
+      const prompt = [
+        "You are checking whether a candidate interview question is too similar to previously asked questions.",
+        "Mark isTooSimilar=true when the candidate repeats the same core topic, subsystem, competency, architectural concern, or tradeoff, even if the wording is different.",
+        "Be strict: follow-up variants that only rephrase the same idea should count as too similar.",
+        input.prompt ? `Interview Prompt: ${input.prompt}` : "",
+        `Role: ${input.role}`,
+        `Level: ${input.level}`,
+        `Language: ${input.language}`,
+        `Candidate Question: ${input.candidateQuestion}`,
+        `Previous Questions: ${JSON.stringify(input.previousQuestions)}`,
+        "Return ONLY JSON:",
+        '{"isTooSimilar": boolean, "matchedQuestion": string | null, "reason": string, "overlapScore": number}',
+        "Rules: overlapScore 0..1.",
+      ].join("\n");
+
+      const json = await this.callOpenAi(prompt);
+      const overlapScore = Number(json?.overlapScore);
+      return {
+        isTooSimilar: Boolean(json?.isTooSimilar),
+        matchedQuestion:
+          typeof json?.matchedQuestion === "string" && json.matchedQuestion.trim()
+            ? json.matchedQuestion.trim()
+            : undefined,
+        reason: typeof json?.reason === "string" ? json.reason : undefined,
+        overlapScore:
+          Number.isFinite(overlapScore) && overlapScore >= 0
+            ? Math.min(1, Math.max(0, overlapScore))
+            : undefined,
       };
     }
   

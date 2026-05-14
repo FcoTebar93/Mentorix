@@ -7,6 +7,8 @@ import type {
   EvaluateAnswerInput,
   LlmEvaluationDraft,
   LlmUsage,
+  QuestionSimilarityInput,
+  QuestionSimilarityResult,
 } from "../../application/ports/services.js";
 import type { LlmProviderConfig } from "../config.llm.js";
 import { createLlmService } from "./providers/factory.js";
@@ -57,6 +59,22 @@ class FallbackLlmService implements ILlmService {
       }
     }
     throw lastError ?? new Error("LLM_QUESTION_GENERATION_FAILED");
+  }
+
+  async judgeQuestionSimilarity(input: QuestionSimilarityInput): Promise<QuestionSimilarityResult> {
+    let lastError: unknown;
+
+    for (const item of this.servicesInOrder) {
+      if (typeof item.service.judgeQuestionSimilarity !== "function") continue;
+      try {
+        return await item.service.judgeQuestionSimilarity(input);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (lastError) throw lastError;
+    return { isTooSimilar: false, overlapScore: 0 };
   }
 
   async evaluateAnswer(input: EvaluateAnswerInput): Promise<LlmEvaluationDraft> {

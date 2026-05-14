@@ -4,7 +4,10 @@ import type {
   ILlmService,
   LlmEvaluationDraft,
   LlmUsage,
+  QuestionSimilarityInput,
+  QuestionSimilarityResult,
 } from "../../../application/ports/services.js";
+import { extractSpokenQuestion } from "../../../application/voice/spoken-question.js";
 
 type GroqConfig = {
   apiKey?: string;
@@ -22,12 +25,23 @@ export class GroqProvider implements ILlmService {
     this.assertApiKey();
 
     const prompt = [
-      "You generate interview questions.",
+      "You are a technical interviewer.",
+      "Your job is to ask exactly one concise next interview question.",
+      "Do not provide feedback, evaluation, hints, praise, explanations, summaries, transitions, or commentary.",
+      "Do not answer for the candidate.",
+      "The next question must be materially different from every previous or rejected question.",
+      "Treat questions about the same core topic, subsystem, tradeoff, or competency as duplicates even if the wording changes.",
+      "Change the topic or angle clearly when previous questions already covered something similar.",
+      "Return a single question in the requested language, ideally under 220 characters.",
+      "The output must contain only the next question text.",
       input.prompt ? `Interview Prompt: ${input.prompt}` : "",
       `Role: ${input.role}`,
       `Level: ${input.level}`,
       `Language: ${input.language}`,
       `Previous: ${JSON.stringify(input.previousQuestions)}`,
+      input.rejectedQuestions?.length
+        ? `Rejected for similarity: ${JSON.stringify(input.rejectedQuestions)}`
+        : "",
       'Return ONLY JSON: {"text":"..."}',
     ].join("\n");
 
@@ -36,7 +50,35 @@ export class GroqProvider implements ILlmService {
     if (typeof text !== "string" || !text.trim()) {
       throw new Error("LLM_INVALID_QUESTION_PAYLOAD");
     }
-    return { text, usage: json.__usage };
+    const normalized = this.normalizeQuestionText(text);
+    if (!normalized) {
+      throw new Error("LLM_INVALID_QUESTION_PAYLOAD");
+    }
+    return { text: normalized, usage: json.__usage };
+  }
+
+  async judgeQuestionSimilarity(
+    input: QuestionSimilarityInput
+  ): Promise<QuestionSimilarityResult> {
+    this.assertApiKey();
+
+    const prompt = [
+      "You are checking whether a candidate interview question is too similar to previously asked questions.",
+      "Mark isTooSimilar=true when the candidate repeats the same core topic, subsystem, competency, architectural concern, or tradeoff, even if the wording is different.",
+      "Be strict: follow-up variants that only rephrase the same idea should count as too similar.",
+      input.prompt ? `Interview Prompt: ${input.prompt}` : "",
+      `Role: ${input.role}`,
+      `Level: ${input.level}`,
+      `Language: ${input.language}`,
+      `Candidate Question: ${input.candidateQuestion}`,
+      `Previous Questions: ${JSON.stringify(input.previousQuestions)}`,
+      "Return ONLY JSON:",
+      '{"isTooSimilar": boolean, "matchedQuestion": string | null, "reason": string, "overlapScore": number}',
+      "Rules: overlapScore 0..1.",
+    ].join("\n");
+
+    const json = await this.callGroq(prompt);
+    return this.normalizeSimilarityResult(json);
   }
 
   async evaluateAnswer(input: EvaluateAnswerInput): Promise<LlmEvaluationDraft> {
@@ -44,6 +86,13 @@ export class GroqProvider implements ILlmService {
 
     const prompt = [
       "You evaluate interview answers strictly.",
+      "Use only evidence explicitly stated in the answer.",
+      "Do not infer experience, tools, architecture decisions, or knowledge the candidate did not mention.",
+      "If the answer is vague, short, generic, or off-topic, assign a low score.",
+      "Do not reward plausible but unstated details.",
+      "Only mention strengths that are directly supported by the answer text.",
+      "If there is not enough evidence, strengths can be an empty array.",
+      "Dimension scores must use only the rubric keys provided.",
       `Question: ${input.question}`,
       `Answer: ${input.answer.text}`,
       `Rubric: ${JSON.stringify(input.rubric.dimensions)}`,
@@ -125,6 +174,29 @@ export class GroqProvider implements ILlmService {
         throw new Error("LLM_INVALID_JSON");
       }
     }
+  }
+
+  private normalizeQuestionText(text: string): string {
+    const compact = text.replace(/\s+/g, " ").trim();
+    if (!compact) return "";
+    const spoken = extractSpokenQuestion(compact);
+    return (spoken || compact).replace(/\s+/g, " ").trim();
+  }
+
+  private normalizeSimilarityResult(value: any): QuestionSimilarityResult {
+    const overlapScore = Number(value?.overlapScore);
+    return {
+      isTooSimilar: Boolean(value?.isTooSimilar),
+      matchedQuestion:
+        typeof value?.matchedQuestion === "string" && value.matchedQuestion.trim()
+          ? value.matchedQuestion.trim()
+          : undefined,
+      reason: typeof value?.reason === "string" ? value.reason : undefined,
+      overlapScore:
+        Number.isFinite(overlapScore) && overlapScore >= 0
+          ? Math.min(1, Math.max(0, overlapScore))
+          : undefined,
+    };
   }
 
   private validateDraft(draft: LlmEvaluationDraft): void {

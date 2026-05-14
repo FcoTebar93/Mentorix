@@ -5,6 +5,8 @@ import type {
   InterviewTemplateRepository,
 } from "../ports/repositories.js";
 import type { Clock, ILlmServiceFactory, IdGenerator } from "../ports/services.js";
+import { TimingTrace } from "../../lib/observability/timing.js";
+import { generateDistinctQuestion } from "../llm/question-novelty.js";
 
 export interface CompleteSessionCommand {
   sessionId: string;
@@ -20,58 +22,78 @@ export class CompleteSessionCase {
   ) {}
 
   async execute(command: CompleteSessionCommand) {
-    const stored = await this.sessions.getById(command.sessionId);
-    if (!stored) throw new Error("SESSION_NOT_FOUND");
+    const trace = new TimingTrace("complete_session", {
+      sessionId: command.sessionId,
+    });
 
-    const session = new InterviewSession(stored);
-    const now = this.clock.nowISO();
+    try {
+      const stored = await trace.step("load_session", () => this.sessions.getById(command.sessionId));
+      if (!stored) throw new Error("SESSION_NOT_FOUND");
 
-    session.nextOrComplete(now);
+      const session = new InterviewSession(stored);
+      const now = this.clock.nowISO();
 
-    if (session.state.status === "ASKING") {
-      const template = await this.templates.getById(session.state.templateId);
-      if (!template) throw new Error("TEMPLATE_NOT_FOUND");
+      session.nextOrComplete(now);
 
-      const isQuestionSet = template.templateType === "question_set";
-      let nextQuestionText: string;
-      if (isQuestionSet) {
-        const next = template.questions?.[session.state.currentQuestionIndex];
-        if (!next) throw new Error("TEMPLATE_QUESTION_NOT_FOUND");
-        nextQuestionText = next;
-      } else {
-        const llm = this.llmFactory.forTemplate(template.llmConfig);
+      let templateType: string | null = null;
+      let nextQuestionSource: string | null = null;
+      if (session.state.status === "ASKING") {
+        const template = await trace.step("load_template", () => this.templates.getById(session.state.templateId));
+        if (!template) throw new Error("TEMPLATE_NOT_FOUND");
+        templateType = template.templateType ?? null;
 
-        let generated: { text: string };
-        try {
-          generated = await llm.generateQuestion({
-            role: template.role,
-            level: template.level,
-            language: template.language,
-            previousQuestions: session.state.questions.map((q) => q.text),
-            prompt: template.prompt,
-          });
-        } catch (error) {
-          if (error instanceof Error && error.message.startsWith("LLM_")) {
-            throw error;
+        const isQuestionSet = template.templateType === "question_set";
+        let nextQuestionText: string;
+        if (isQuestionSet) {
+          const next = template.questions?.[session.state.currentQuestionIndex];
+          if (!next) throw new Error("TEMPLATE_QUESTION_NOT_FOUND");
+          nextQuestionText = next;
+        } else {
+          const llm = this.llmFactory.forTemplate(template.llmConfig);
+
+          let generated: { text: string };
+          try {
+            generated = await trace.step("llm_generate_question", () =>
+              generateDistinctQuestion(llm, {
+                role: template.role,
+                level: template.level,
+                language: template.language,
+                previousQuestions: session.state.questions.map((q) => q.text),
+                prompt: template.prompt,
+              })
+            );
+          } catch (error) {
+            if (error instanceof Error && error.message.startsWith("LLM_")) {
+              throw error;
+            }
+            throw new Error("LLM_QUESTION_GENERATION_FAILED");
           }
-          throw new Error("LLM_QUESTION_GENERATION_FAILED");
+          nextQuestionText = generated.text;
         }
-        nextQuestionText = generated.text;
+
+        const nextQuestion: SessionQuestion = {
+          id: this.ids.uuid(),
+          index: session.state.currentQuestionIndex + 1,
+          text: nextQuestionText,
+          generatedByModel: isQuestionSet ? "fixed" : template.llmConfig.model,
+          source: isQuestionSet ? "fixed" : "llm",
+          createdAt: now,
+        };
+
+        session.deliverQuestion(nextQuestion);
+        nextQuestionSource = nextQuestion.source ?? null;
       }
 
-      const nextQuestion: SessionQuestion = {
-        id: this.ids.uuid(),
-        index: session.state.currentQuestionIndex + 1,
-        text: nextQuestionText,
-        generatedByModel: isQuestionSet ? "fixed" : template.llmConfig.model,
-        source: isQuestionSet ? "fixed" : "llm",
-        createdAt: now,
-      };
-
-      session.deliverQuestion(nextQuestion);
+      await trace.step("save_session", () => this.sessions.save(session.state));
+      trace.end({
+        status: session.state.status,
+        templateType,
+        nextQuestionSource,
+      });
+      return session.state;
+    } catch (error) {
+      trace.end({ failed: true, error: error instanceof Error ? error.message : String(error) });
+      throw error;
     }
-
-    await this.sessions.save(session.state);
-    return session.state;
   }
 }
