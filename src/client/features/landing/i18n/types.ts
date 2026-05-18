@@ -93,11 +93,6 @@ export type LandingCopy = {
     ctaPrimary: string;
     ctaSecondary: string;
   };
-  footer: {
-    tagline: string;
-    columns: Array<{ title: string; items: string[] }>;
-    rights: string;
-  };
 };
 
 export type FeatureIcon =

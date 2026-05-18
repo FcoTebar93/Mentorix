@@ -160,16 +160,6 @@ const es: LandingCopy = {
     ctaPrimary: "Empezar gratis",
     ctaSecondary: "Tengo un link",
   },
-  footer: {
-    tagline: "Entrevistas técnicas guiadas por IA. Foco en señal, no en ruido.",
-    columns: [
-      { title: "Producto", items: ["Características", "Cómo funciona", "Precios", "Changelog"] },
-      { title: "Recursos", items: ["Documentación", "Guía de rúbricas", "API", "Status"] },
-      { title: "Empresa", items: ["Sobre Mentorix", "Blog", "Contacto", "Empleo"] },
-      { title: "Legal", items: ["Privacidad", "Términos", "Cookies", "DPA"] },
-    ],
-    rights: "© 2026 Mentorix · Hecho con foco en señal, no ruido.",
-  },
 };
 
 const en: LandingCopy = {
@@ -331,16 +321,6 @@ const en: LandingCopy = {
     subtitle: "Start free. Self-host whenever you want.",
     ctaPrimary: "Get started free",
     ctaSecondary: "I have a link",
-  },
-  footer: {
-    tagline: "AI-guided technical interviews. Focus on signal, not noise.",
-    columns: [
-      { title: "Product", items: ["Features", "How it works", "Pricing", "Changelog"] },
-      { title: "Resources", items: ["Docs", "Rubric guide", "API", "Status"] },
-      { title: "Company", items: ["About Mentorix", "Blog", "Contact", "Careers"] },
-      { title: "Legal", items: ["Privacy", "Terms", "Cookies", "DPA"] },
-    ],
-    rights: "© 2026 Mentorix · Built for signal, not noise.",
   },
 };
 
