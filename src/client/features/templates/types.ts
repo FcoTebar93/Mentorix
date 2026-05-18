@@ -40,12 +40,37 @@ export type InterviewTemplate = {
   updatedAt: string;
 };
 
-export type CreateTemplateInput = Omit<
-  InterviewTemplate,
-  "id" | "ownerUserId" | "isArchived" | "createdAt" | "updatedAt" | "llmConfig"
->;
+type TemplateBaseInput = {
+  interviewMode?: InterviewMode;
+  title: string;
+  role: string;
+  level: TemplateLevel;
+  language: string;
+  rubric: {
+    dimensions: RubricDimension[];
+    passThreshold: number;
+  };
+  voiceConfig?: InterviewTemplate["voiceConfig"];
+};
 
-export type UpdateTemplateInput = Partial<CreateTemplateInput>;
+export type CreateTemplateInput =
+  | (TemplateBaseInput & {
+      templateType: "dynamic";
+      totalQuestions: number;
+      prompt: string;
+    })
+  | (TemplateBaseInput & {
+      templateType: "question_set";
+      totalQuestions: number;
+      questions: string[];
+    });
+
+export type UpdateTemplateInput = Partial<TemplateBaseInput> & {
+  templateType?: TemplateType;
+  totalQuestions?: number;
+  prompt?: string;
+  questions?: string[];
+};
 
 export type AccessLink = {
   id: string;

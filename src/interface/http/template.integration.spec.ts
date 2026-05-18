@@ -28,6 +28,7 @@ describe("HTTP template routes", { timeout: 15000 }, () => {
         headers: auth("u1"),
         payload: {
           templateType: "dynamic",
+          interviewMode: "voice",
           title: "Frontend Interview",
           role: "Frontend Engineer",
           level: "mid",
@@ -61,6 +62,7 @@ describe("HTTP template routes", { timeout: 15000 }, () => {
         headers: auth("u1"),
         payload: {
           templateType: "question_set",
+          interviewMode: "text",
           title: "Backend QSet",
           role: "Backend Engineer",
           level: "senior",
@@ -82,6 +84,50 @@ describe("HTTP template routes", { timeout: 15000 }, () => {
       expect(res.json().code).toBe("OK");
       expect(res.json().data.templateType).toBe("question_set");
       expect(res.json().data.totalQuestions).toBe(2);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 200 when updating dynamic template interviewMode without empty questions array", async () => {
+    const app = buildHttpTestServer();
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/v1/templates",
+        headers: auth("u1"),
+        payload: {
+          templateType: "dynamic",
+          interviewMode: "voice",
+          title: "Entrevista dinámica",
+          role: "Backend Engineer",
+          level: "mid",
+          language: "es",
+          totalQuestions: 3,
+          prompt: "Evalúa fundamentos de backend.",
+          rubric: {
+            dimensions: [{ key: "architecture", weight: 1, description: "Claridad" }],
+            passThreshold: 70,
+          },
+        },
+      });
+
+      const templateId = created.json().data.id as string;
+
+      const updated = await app.inject({
+        method: "PUT",
+        url: `/v1/templates/${templateId}`,
+        headers: auth("u1"),
+        payload: {
+          interviewMode: "text",
+          questions: [],
+          prompt: "",
+        },
+      });
+
+      expect(updated.statusCode).toBe(200);
+      expect(updated.json().code).toBe("OK");
+      expect(updated.json().data.interviewMode).toBe("text");
     } finally {
       await app.close();
     }

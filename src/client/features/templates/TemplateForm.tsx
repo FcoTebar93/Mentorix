@@ -125,8 +125,7 @@ export function TemplateForm({
 
     const parsedQuestions = normalizedQuestions.filter(Boolean);
 
-    const payload = {
-      templateType,
+    const base = {
       interviewMode,
       title: title.trim(),
       role: role.trim(),
@@ -140,16 +139,22 @@ export function TemplateForm({
         })),
         passThreshold,
       },
-      ...(templateType === "dynamic"
+    };
+
+    const payload: CreateTemplateInput =
+      templateType === "dynamic"
         ? {
+            ...base,
+            templateType: "dynamic",
             totalQuestions,
             prompt: prompt.trim(),
           }
         : {
+            ...base,
+            templateType: "question_set",
             totalQuestions: parsedQuestions.length,
             questions: parsedQuestions,
-          }),
-    } satisfies CreateTemplateInput;
+          };
 
     try {
       await onSubmit(payload);
