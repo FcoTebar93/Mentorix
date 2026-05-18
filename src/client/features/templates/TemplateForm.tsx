@@ -125,16 +125,13 @@ export function TemplateForm({
 
     const parsedQuestions = normalizedQuestions.filter(Boolean);
 
-    const payload: CreateTemplateInput = {
+    const payload = {
       templateType,
       interviewMode,
       title: title.trim(),
       role: role.trim(),
       level,
       language: language.trim(),
-      totalQuestions: templateType === "dynamic" ? totalQuestions : parsedQuestions.length,
-      prompt: templateType === "dynamic" ? prompt.trim() : "",
-      questions: templateType === "question_set" ? parsedQuestions : [],
       rubric: {
         dimensions: dimensions.map((dim) => ({
           key: dim.key.trim(),
@@ -143,7 +140,16 @@ export function TemplateForm({
         })),
         passThreshold,
       },
-    };
+      ...(templateType === "dynamic"
+        ? {
+            totalQuestions,
+            prompt: prompt.trim(),
+          }
+        : {
+            totalQuestions: parsedQuestions.length,
+            questions: parsedQuestions,
+          }),
+    } satisfies CreateTemplateInput;
 
     try {
       await onSubmit(payload);

@@ -55,11 +55,21 @@ const CreateTemplateBodySchema = z.discriminatedUnion("templateType", [
   QuestionSetTemplateBodySchema,
 ]);
 
+const optionalNonEmptyStringArray = z.preprocess(
+  (value) => (Array.isArray(value) && value.length === 0 ? undefined : value),
+  z.array(z.string().min(1)).min(1).optional()
+);
+
+const optionalNonEmptyString = z.preprocess(
+  (value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value),
+  z.string().min(1).optional()
+);
+
 const UpdateTemplateBodySchema = BaseTemplateSchema.extend({
   templateType: z.enum(["dynamic", "question_set"]).optional(),
-  prompt: z.string().min(1).optional(),
+  prompt: optionalNonEmptyString,
   totalQuestions: z.number().int().positive().optional(),
-  questions: z.array(z.string().min(1)).min(1).optional(),
+  questions: optionalNonEmptyStringArray,
 }).partial().refine(
   (body) => Object.keys(body).length > 0,
   { message: "At least one field must be provided" }
