@@ -1,19 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useInterviewApi } from "../../app/providers/ApiClientsProvider";
 import { DEFAULT_RUBRIC_DIMENSIONS } from "../../../lib/interview/rubric";
 import { ErrorBanner } from "../../shared/components/ErrorBanner";
 import { humanizeError, type HumanError } from "../../../lib/errors/humanize";
+import type { InterviewAnswer } from "../../../lib/interview/types";
+
+type AdvancePayload = {
+  questionId: string;
+  questionText: string;
+  prefetchedQuestionAudioBase64?: string | null;
+};
 
 type Props = {
   sessionId: string;
   questionId: string;
-  questionText: string;
-  onAdvance: (next: {
-    questionId: string;
-    questionText: string;
-    prefetchedQuestionAudioBase64?: string | null;
-  }) => void;
+  onTurnPendingChange: (pending: boolean) => void;
+  onUserAnswer: (answer: Pick<InterviewAnswer, "questionId" | "text" | "source">) => void;
+  onNextQuestion: (next: AdvancePayload) => void;
   onCompleted: () => void;
 };
 
@@ -22,8 +26,9 @@ const MIN_ANSWER_CHARS = 5;
 export function TextTurnComposer({
   sessionId,
   questionId,
-  questionText,
-  onAdvance,
+  onTurnPendingChange,
+  onUserAnswer,
+  onNextQuestion,
   onCompleted,
 }: Props) {
   const interviewApi = useInterviewApi();
@@ -31,12 +36,17 @@ export function TextTurnComposer({
   const [loading, setLoading] = useState(false);
   const [errorState, setErrorState] = useState<HumanError | null>(null);
 
+  useEffect(() => {
+    onTurnPendingChange(loading);
+  }, [loading, onTurnPendingChange]);
+
   const trimmedLength = text.trim().length;
   const canSubmit = trimmedLength >= MIN_ANSWER_CHARS && !loading;
 
   async function submit() {
     if (!canSubmit) return;
 
+    const answerText = text.trim();
     setErrorState(null);
     setLoading(true);
 
@@ -44,22 +54,24 @@ export function TextTurnComposer({
       const res = await interviewApi.completeTurn(sessionId, {
         questionId,
         source: "text",
-        text: text.trim(),
+        text: answerText,
         rubricDimensions: DEFAULT_RUBRIC_DIMENSIONS,
       });
 
       const result = res.data;
+      onUserAnswer({ questionId, text: answerText, source: "text" });
+      setText("");
+
       if (result.isCompleted) {
         onCompleted();
         return;
       }
 
       if (result.nextQuestion?.id) {
-        onAdvance({
+        onNextQuestion({
           questionId: result.nextQuestion.id,
           questionText: result.nextQuestion.text ?? "Siguiente pregunta",
         });
-        setText("");
         return;
       }
 
@@ -82,24 +94,12 @@ export function TextTurnComposer({
   }
 
   return (
-    <section className="interview-panel">
-      <header className="interview-panel-header">
-        <h2 className="title-reset">Entrevista en curso</h2>
-        <span className={`status-pill ${loading ? "is-pulsing" : ""}`}>
-          {loading ? "Enviando..." : "Listo para responder"}
-        </span>
-      </header>
-
-      <section className="chat-container">
-        <article className="message-row message-ai">
-          <div className="message-bubble level-2">
-            <p className="message-meta">AI Interviewer</p>
-            <p className="text-reset">{questionText}</p>
-          </div>
-        </article>
-
-        {errorState ? <ErrorBanner error={errorState} onRetry={() => void submit()} /> : null}
-      </section>
+    <>
+      {errorState ? (
+        <div className="composer-error">
+          <ErrorBanner error={errorState} onRetry={() => void submit()} />
+        </div>
+      ) : null}
 
       <form className="composer-sticky" onSubmit={onSubmit}>
         <label className="form-stack">
@@ -124,6 +124,6 @@ export function TextTurnComposer({
           </button>
         </div>
       </form>
-    </section>
+    </>
   );
 }

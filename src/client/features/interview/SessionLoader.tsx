@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useInterviewApi } from "../../app/providers/ApiClientsProvider";
 import { TurnPanel } from "./TurnPanel";
+import { buildThreadFromSession, type InterviewThreadMessage } from "./interview-thread";
 import { ErrorBanner } from "../../shared/components/ErrorBanner";
 import { humanizeError, type HumanError } from "../../../lib/errors/humanize";
 import { DEFAULT_RUBRIC_DIMENSIONS } from "../../../lib/interview/rubric";
@@ -19,7 +20,11 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
   const [loadingMessage, setLoadingMessage] = useState("Cargando sesión...");
   const [loadingDetail, setLoadingDetail] = useState("Estamos buscando el último punto guardado.");
   const [errorState, setErrorState] = useState<HumanError | null>(null);
-  const [question, setQuestion] = useState<{ id: string; text: string } | null>(null);
+  const [sessionBootstrap, setSessionBootstrap] = useState<{
+    questionId: string;
+    questionText: string;
+    initialMessages: InterviewThreadMessage[];
+  } | null>(null);
   const [interviewMode, setInterviewMode] = useState<"text" | "voice">("voice");
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -52,9 +57,13 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
           }
 
           if (recovered.nextQuestion?.id) {
-            setQuestion({
-              id: recovered.nextQuestion.id,
-              text: recovered.nextQuestion.text ?? "Pregunta actual",
+            const refreshed = await interviewApi.getSession(sessionId);
+            if (!active) return;
+            const refreshedSession = refreshed.data;
+            setSessionBootstrap({
+              questionId: recovered.nextQuestion.id,
+              questionText: recovered.nextQuestion.text ?? "Pregunta actual",
+              initialMessages: buildThreadFromSession(refreshedSession),
             });
             return;
           }
@@ -80,9 +89,10 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
           return;
         }
 
-        setQuestion({
-          id: currentQuestion.id,
-          text: currentQuestion.text ?? "Pregunta actual",
+        setSessionBootstrap({
+          questionId: currentQuestion.id,
+          questionText: currentQuestion.text ?? "Pregunta actual",
+          initialMessages: buildThreadFromSession(session),
         });
       } catch (err) {
         if (!active) return;
@@ -119,15 +129,16 @@ export function SessionLoader({ sessionId, onBack, onCompleted }: Props) {
     );
   }
 
-  if (!question) return null;
+  if (!sessionBootstrap) return null;
 
   return (
     <section className="stack-md">
       <button type="button" onClick={onBack}>Volver</button>
       <TurnPanel
         sessionId={sessionId}
-        initialQuestionId={question.id}
-        initialQuestionText={question.text}
+        initialQuestionId={sessionBootstrap.questionId}
+        initialQuestionText={sessionBootstrap.questionText}
+        initialMessages={sessionBootstrap.initialMessages}
         interviewMode={interviewMode}
         onCompleted={onCompleted}
       />

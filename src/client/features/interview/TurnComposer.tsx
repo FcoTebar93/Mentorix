@@ -4,6 +4,7 @@ import { DEFAULT_RUBRIC_DIMENSIONS } from "../../../lib/interview/rubric";
 import { ErrorBanner } from "../../shared/components/ErrorBanner";
 import { humanizeError, type HumanError } from "../../../lib/errors/humanize";
 import { HttpError } from "../../../lib/api/client";
+import type { InterviewAnswer } from "../../../lib/interview/types";
 import {
   blobToBase64,
   parseRealtimeServerEvent,
@@ -17,32 +18,35 @@ import { useVoiceActivity } from "./turn-composer/voice-activity.js";
 const AUTO_START_RECORDING_DELAY_MS = 500;
 const REALTIME_TURN_TIMEOUT_MS = 120_000;
 
+type AdvancePayload = {
+  questionId: string;
+  questionText: string;
+  prefetchedQuestionAudioBase64?: string | null;
+};
+
 type Props = {
   sessionId: string;
-  initialQuestionId: string;
-  initialQuestionText?: string;
+  activeQuestionId: string;
   prefetchedQuestionAudioBase64?: string | null;
+  onTurnPendingChange: (pending: boolean) => void;
+  onUserAnswer: (answer: Pick<InterviewAnswer, "questionId" | "text" | "source">) => void;
+  onNextQuestion: (next: AdvancePayload) => void;
   onCompleted: () => void;
-  onAdvance?: (next: {
-    questionId: string;
-    questionText: string;
-    prefetchedQuestionAudioBase64?: string | null;
-  }) => void;
   onSwitchToText?: () => void;
 };
 
 export function TurnComposer({
   sessionId,
-  initialQuestionId,
-  initialQuestionText,
+  activeQuestionId,
   prefetchedQuestionAudioBase64,
+  onTurnPendingChange,
+  onUserAnswer,
+  onNextQuestion,
   onCompleted,
-  onAdvance,
   onSwitchToText,
 }: Props) {
   const interviewApi = useInterviewApi();
-  const [questionId, setQuestionId] = useState(initialQuestionId);
-  const [questionText, setQuestionText] = useState(initialQuestionText ?? "Pregunta actual");
+  const questionId = activeQuestionId;
   const [answerAudioBase64, setAnswerAudioBase64] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -64,11 +68,20 @@ export function TurnComposer({
   const startRecordingRef = useRef<() => Promise<void>>(async () => {});
   const realtimeTurnTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readyNextQuestionAudioRef = useRef<string | null>(null);
+  const transcriptRef = useRef<string | null>(null);
 
   const { vadStatus, startVad, stopVad } = useVoiceActivity(mediaRecorderRef, closedByVadRef);
 
   const ENABLE_REALTIME_VOICE = import.meta.env.VITE_VOICE_STREAMING_ENABLED !== "false";
   const ENABLE_REALTIME_CHUNKED_AUDIO = import.meta.env.VITE_REALTIME_CHUNKED_AUDIO_ENABLED !== "false";
+
+  useEffect(() => {
+    onTurnPendingChange(loading);
+  }, [loading, onTurnPendingChange]);
+
+  useEffect(() => {
+    transcriptRef.current = transcript;
+  }, [transcript]);
 
   const canSubmit = useMemo(
     () => !!questionId && !!answerAudioBase64 && !loading && !isRecording,
@@ -257,7 +270,12 @@ export function TurnComposer({
     });
 
     const data = res.data.result;
+    const transcriptText = res.data.transcript?.trim();
     setTranscript(res.data.transcript);
+
+    if (transcriptText) {
+      onUserAnswer({ questionId, text: transcriptText, source: "voice" });
+    }
 
     if (data.isCompleted) {
       onCompleted();
@@ -267,14 +285,13 @@ export function TurnComposer({
     if (data.nextQuestion?.id) {
       const nextId = data.nextQuestion.id;
       const nextText = data.nextQuestion.text ?? "Siguiente pregunta";
-      setQuestionId(nextId);
-      setQuestionText(nextText);
       setAnswerAudioBase64(null);
-        onAdvance?.({
-          questionId: nextId,
-          questionText: nextText,
-          prefetchedQuestionAudioBase64: res.data.nextQuestionAudioBase64,
-        });
+      setTranscript(null);
+      onNextQuestion({
+        questionId: nextId,
+        questionText: nextText,
+        prefetchedQuestionAudioBase64: res.data.nextQuestionAudioBase64,
+      });
       return;
     }
     setErrorState({
@@ -454,8 +471,12 @@ export function TurnComposer({
           readyNextQuestionAudioRef.current = audioBase64;
           return;
         }
-        case "turn_completed":
+        case "turn_completed": {
           closeRealtimeConnection();
+          const transcriptText = transcriptRef.current?.trim();
+          if (transcriptText) {
+            onUserAnswer({ questionId, text: transcriptText, source: "voice" });
+          }
           if (message.data.isCompleted) {
             onCompleted();
             return;
@@ -463,10 +484,9 @@ export function TurnComposer({
           if (message.data.nextQuestionId) {
             const nextId = message.data.nextQuestionId;
             const nextText = message.data.nextQuestionText ?? "Siguiente pregunta";
-            setQuestionId(nextId);
-            setQuestionText(nextText);
             setAnswerAudioBase64(null);
-            onAdvance?.({
+            setTranscript(null);
+            onNextQuestion({
               questionId: nextId,
               questionText: nextText,
               prefetchedQuestionAudioBase64: readyNextQuestionAudioRef.current,
@@ -474,6 +494,7 @@ export function TurnComposer({
             readyNextQuestionAudioRef.current = null;
           }
           return;
+        }
         case "error":
           closeRealtimeConnection();
           setErrorState(
@@ -498,55 +519,28 @@ export function TurnComposer({
   }
 
   return (
-    <section className="interview-panel">
-      <header className="interview-panel-header">
-        <div>
-          <h2 className="title-reset">Entrevista en curso</h2>
-          <p className="composer-hint">{statusDetail}</p>
-        </div>
+    <>
+      <header className="interview-panel-header interview-panel-header--voice">
+        <p className="composer-hint">{statusDetail}</p>
         <span className={`status-pill ${loading || isRecording || realtimePhase !== "idle" ? "is-pulsing" : ""}`}>
           {statusText}
         </span>
       </header>
 
-      <section className="chat-container">
-        <article className="message-row message-ai">
-          <div className="message-bubble level-2">
-            <p className="message-meta">AI Interviewer</p>
-            <p className="text-reset">{questionText}</p>
-          </div>
-        </article>
+      {(questionAudioUnavailable || answerAudioBase64 || transcript) ? (
+        <section className="voice-draft" aria-label="Estado del turno actual">
+          {questionAudioUnavailable ? (
+            <p className="voice-draft-line">Audio de la pregunta no disponible. Puedes leerla en el historial.</p>
+          ) : null}
+          {answerAudioBase64 ? (
+            <p className="voice-draft-line">Audio capturado. Enviarlo para continuar o graba de nuevo.</p>
+          ) : null}
+          {transcript ? <pre className="code-block voice-draft-transcript">{transcript}</pre> : null}
+        </section>
+      ) : null}
 
-        {questionAudioUnavailable ? (
-          <article className="message-row message-ai">
-            <div className="message-bubble level-2">
-              <p className="message-meta">Audio no disponible</p>
-              <p className="text-reset">
-                No pude reproducir la pregunta en voz alta. Puedes leerla aquÃ­ y responder igualmente.
-              </p>
-            </div>
-          </article>
-        ) : null}
-
-        {answerAudioBase64 ? (
-          <article className="message-row message-user">
-            <div className="message-bubble level-2">
-              <p className="message-meta">Tu respuesta</p>
-              <p className="text-reset">Audio capturado. EnvÃ­alo para continuar o graba de nuevo si quieres corregirlo.</p>
-            </div>
-          </article>
-        ) : null}
-
-        {transcript ? (
-          <article className="message-row message-user">
-            <div className="message-bubble level-2">
-              <p className="message-meta">TranscripciÃ³n</p>
-              <pre className="code-block">{transcript}</pre>
-            </div>
-          </article>
-        ) : null}
-
-        {errorState ? (
+      {errorState ? (
+        <div className="composer-error">
           <ErrorBanner
             error={errorState}
             onRetry={
@@ -559,8 +553,8 @@ export function TurnComposer({
             }
             onSwitchToText={errorState.fallbackToText ? onSwitchToText : undefined}
           />
-        ) : null}
-      </section>
+        </div>
+      ) : null}
 
       <section className="composer-sticky">
         <div className="row-actions">
@@ -582,6 +576,6 @@ export function TurnComposer({
           </button>
         </div>
       </section>
-    </section>
+    </>
   );
 }

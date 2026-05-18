@@ -1152,12 +1152,51 @@ button:disabled {
 
 .chat-container {
   overflow: auto;
+  min-height: 0;
   padding: var(--spacing-16);
   border-radius: var(--radius-large);
   background: var(--color-void-black);
   display: grid;
   align-content: start;
   gap: var(--spacing-12);
+}
+
+.message-bubble.is-pending {
+  opacity: 0.72;
+  font-style: italic;
+}
+
+.interview-composer {
+  display: grid;
+  gap: var(--spacing-12);
+  min-height: 0;
+}
+
+.interview-panel-header--voice {
+  align-items: flex-start;
+}
+
+.composer-error {
+  margin: 0;
+}
+
+.voice-draft {
+  display: grid;
+  gap: var(--spacing-8);
+  padding: var(--spacing-12) var(--spacing-16);
+  border-radius: var(--radius-large);
+  border: 1px dashed var(--color-iron);
+  background: var(--color-coal);
+}
+
+.voice-draft-line {
+  margin: 0;
+  color: var(--color-ash-gray);
+  font-size: var(--text-body-sm);
+}
+
+.voice-draft-transcript {
+  margin: 0;
 }
 
 .message-row {
