@@ -4,7 +4,12 @@ import type { SessionReport } from "../../../lib/interview/types";
 import { ErrorBanner } from "../../shared/components/ErrorBanner";
 import { humanizeError, type HumanError } from "../../../lib/errors/humanize";
 import { formatDimensionLabel } from "../../../lib/interview/report-builder";
-import { formatConfidence, normalizePercentScale, usesTenPointScale } from "../../../lib/interview/report-scores";
+import {
+  formatConfidence,
+  normalizePercentScale,
+  normalizeSessionReport,
+  usesTenPointScale,
+} from "../../../lib/interview/report-scores";
 import { ReportTurnCard } from "./ReportTurnCard";
 
 type Props = {
@@ -138,7 +143,7 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
       try {
         const res = await interviewApi.getReport(sessionId);
         if (!active) return;
-        setReport(res.data);
+        setReport(normalizeSessionReport(res.data));
       } catch (err) {
         if (!active) return;
         setErrorState(humanizeError(err));
@@ -173,6 +178,10 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
   if (phase === "celebrating") return <ClosingCelebration />;
   if (phase === "analyzing") return <AnalyzingIndicator />;
   if (!report) return null;
+
+  const turns = report.turns ?? [];
+  const strengths = report.strengths ?? [];
+  const improvements = report.improvements ?? [];
 
   const overallBucket = bucketForScore(report.overallScore);
   const overallText = report.overallScore !== null ? String(report.overallScore) : "—";
@@ -215,9 +224,9 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
         <p className="report-section-lead">
           Detalle de cada turno con nota, fortalezas, aspectos a mejorar y feedback del entrevistador.
         </p>
-        {report.turns.length ? (
+        {turns.length ? (
           <section className="report-turns">
-            {report.turns.map((turn) => (
+            {turns.map((turn) => (
               <ReportTurnCard key={turn.questionId} turn={turn} />
             ))}
           </section>
@@ -266,9 +275,9 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
             <span aria-hidden="true">↑</span>
             <span>Fortalezas generales</span>
           </header>
-          {report.strengths.length ? (
+          {strengths.length ? (
             <ul className="list-compact">
-              {report.strengths.map((item, idx) => (
+              {strengths.map((item, idx) => (
                 <li key={`${item}-${idx}`}>{item}</li>
               ))}
             </ul>
@@ -282,9 +291,9 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
             <span aria-hidden="true">→</span>
             <span>Áreas de mejora generales</span>
           </header>
-          {report.improvements.length ? (
+          {improvements.length ? (
             <ul className="list-compact">
-              {report.improvements.map((item, idx) => (
+              {improvements.map((item, idx) => (
                 <li key={`${item}-${idx}`}>{item}</li>
               ))}
             </ul>

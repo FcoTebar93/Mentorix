@@ -17,7 +17,9 @@ type Props = {
 
 export function ReportTurnCard({ turn }: Props) {
   const bucket = bucketForScore(turn.score);
-  const dimensionEntries = Object.entries(turn.dimensionScores);
+  const dimensionEntries = Object.entries(turn.dimensionScores ?? {});
+  const strengths = turn.strengths ?? [];
+  const improvements = turn.improvements ?? [];
 
   return (
     <article className="report-turn-card">
@@ -79,9 +81,9 @@ export function ReportTurnCard({ turn }: Props) {
       <section className="report-turn-columns">
         <section className="report-turn-block">
           <p className="report-turn-label">Fortalezas de esta respuesta</p>
-          {turn.strengths.length ? (
+          {strengths.length ? (
             <ul className="report-turn-list">
-              {turn.strengths.map((item) => (
+              {strengths.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
@@ -91,9 +93,9 @@ export function ReportTurnCard({ turn }: Props) {
         </section>
         <section className="report-turn-block">
           <p className="report-turn-label">Aspectos a mejorar</p>
-          {turn.improvements.length ? (
+          {improvements.length ? (
             <ul className="report-turn-list">
-              {turn.improvements.map((item) => (
+              {improvements.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
