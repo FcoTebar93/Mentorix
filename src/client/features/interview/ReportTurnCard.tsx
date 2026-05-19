@@ -59,7 +59,12 @@ export function ReportTurnCard({ turn }: Props) {
                     <section className="dimension-bar-track">
                       <span
                         className={`dimension-bar-fill is-${dimBucket}`}
-                        style={{ width: `${value}%`, display: "block", height: "100%" }}
+                        style={{
+                          width: `${value}%`,
+                          position: "absolute",
+                          insetBlock: 0,
+                          insetInlineStart: 0,
+                        }}
                       />
                     </section>
                   </section>

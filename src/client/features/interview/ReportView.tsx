@@ -93,98 +93,6 @@ function ClosingCelebration() {
   );
 }
 
-function ReportTurnCard({ turn }: { turn: SessionReportTurn }) {
-  const bucket = bucketForScore(turn.score);
-  const dimensionEntries = Object.entries(turn.dimensionScores);
-
-  return (
-    <article className="report-turn-card">
-      <header className="report-turn-header">
-        <h4 className="title-reset">Pregunta {turn.questionIndex}</h4>
-        <span className="report-turn-score">
-          <span className={`dimension-bar-score score-${bucket}`}>
-            {turn.score !== null ? `${turn.score}/100` : "Sin nota"}
-          </span>
-          {turn.confidence !== null ? (
-            <span className="message-meta">Confianza {formatConfidence(turn.confidence)}</span>
-          ) : null}
-        </span>
-      </header>
-
-      <div className="report-turn-block">
-        <p className="report-turn-label">Pregunta</p>
-        <p className="report-turn-text">{turn.questionText}</p>
-      </div>
-
-      <div className="report-turn-block">
-        <p className="report-turn-label">
-          Respuesta{turn.answerSource === "voice" ? " (voz)" : turn.answerSource === "text" ? " (texto)" : ""}
-        </p>
-        <p className="report-turn-text">{turn.answerText ?? "Sin respuesta registrada."}</p>
-      </motion-div>
-
-      {dimensionEntries.length ? (
-        <div className="report-turn-block">
-          <p className="report-turn-label">Nota por dimensión</p>
-          <div className="stack-xs">
-            {dimensionEntries.map(([key, value]) => {
-              const dimBucket = bucketForScore(value);
-              return (
-                <div key={key} className="dimension-bar-row">
-                  <div className="dimension-bar-info">
-                    <span className="dimension-bar-label">{formatDimensionLabel(key)}</span>
-                    <div className="dimension-bar-track">
-                      <div
-                        className={`dimension-bar-fill is-${dimBucket}`}
-                        style={{ width: `${value}%` }}
-                      />
-                    </motion-div>
-                  </motion-div>
-                  <span className={`dimension-bar-score score-${dimBucket}`}>{value}</span>
-                </motion-div>
-              );
-            })}
-          </motion-div>
-        </motion-div>
-      ) : null}
-
-      <div className="report-turn-columns">
-        <div className="report-turn-block">
-          <p className="report-turn-label">Fortalezas de esta respuesta</p>
-          {turn.strengths.length ? (
-            <ul className="report-turn-list">
-              {turn.strengths.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-reset">—</p>
-          )}
-        </motion-div>
-        <div className="report-turn-block">
-          <p className="report-turn-label">Aspectos a mejorar</p>
-          {turn.improvements.length ? (
-            <ul className="report-turn-list">
-              {turn.improvements.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-reset">—</p>
-          )}
-        </motion-div>
-      </motion-div>
-
-      {turn.feedback ? (
-        <div className="report-turn-block">
-          <p className="report-turn-label">Feedback del entrevistador</p>
-          <p className="report-turn-text">{turn.feedback}</p>
-        </motion-div>
-      ) : null}
-    </article>
-  );
-}
-
 function AnalyzingIndicator() {
   const [hintIndex, setHintIndex] = useState(0);
 
@@ -303,6 +211,22 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
       </section>
 
       <section className="info-card">
+        <h3 className="title-reset">Preguntas y respuestas</h3>
+        <p className="report-section-lead">
+          Detalle de cada turno con nota, fortalezas, aspectos a mejorar y feedback del entrevistador.
+        </p>
+        {report.turns.length ? (
+          <section className="report-turns">
+            {report.turns.map((turn) => (
+              <ReportTurnCard key={turn.questionId} turn={turn} />
+            ))}
+          </section>
+        ) : (
+          <p className="text-reset">No hay turnos registrados en esta sesión.</p>
+        )}
+      </section>
+
+      <section className="info-card">
         <h3 className="title-reset">Promedio por dimensión</h3>
 
         {sortedDimensions.length ? (
@@ -313,7 +237,7 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
               return (
                 <div key={key} className="dimension-bar-row">
                   <div className="dimension-bar-info">
-                    <span className="dimension-bar-label">{key}</span>
+                    <span className="dimension-bar-label">{formatDimensionLabel(key)}</span>
                     <div className="dimension-bar-track">
                       <div
                         className={`dimension-bar-fill is-${bucket}`}
@@ -331,11 +255,16 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
         )}
       </section>
 
-      <section className="feedback-grid">
+      <section className="info-card">
+        <h3 className="title-reset">Resumen general</h3>
+        <p className="report-section-lead">
+          Patrones más repetidos a lo largo de toda la entrevista. El detalle por respuesta está arriba.
+        </p>
+        <section className="feedback-grid">
         <section className="feedback-card is-strengths">
           <header className="feedback-card-header">
             <span aria-hidden="true">↑</span>
-            <span>Fortalezas</span>
+            <span>Fortalezas generales</span>
           </header>
           {report.strengths.length ? (
             <ul className="list-compact">
@@ -351,7 +280,7 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
         <section className="feedback-card is-improvements">
           <header className="feedback-card-header">
             <span aria-hidden="true">→</span>
-            <span>Mejoras sugeridas</span>
+            <span>Áreas de mejora generales</span>
           </header>
           {report.improvements.length ? (
             <ul className="list-compact">
@@ -362,6 +291,7 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
           ) : (
             <p className="text-reset">No hay mejoras registradas.</p>
           )}
+        </section>
         </section>
       </section>
 

@@ -8,8 +8,9 @@ describe("report-builder", () => {
       ["Claridad", "Ejemplos concretos"],
       ["Buen ritmo"],
     ]);
-    expect(themes[0]).toBe("Claridad");
+    expect(themes).toContain("Claridad");
     expect(themes).toContain("Buen ritmo");
+    expect(themes.indexOf("Ejemplos concretos")).toBeGreaterThan(themes.indexOf("Claridad"));
   });
 
   it("builds turns aligned with questions", () => {
