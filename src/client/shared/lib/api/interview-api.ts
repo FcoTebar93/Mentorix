@@ -77,6 +77,7 @@ export function createInterviewApi(request: JsonRequestFn, baseUrl: string) {
     getReport(sessionId: string) {
       return request<ApiOk<SessionReport>>(`${root}/v1/interview-sessions/${sessionId}/report`, {
         method: "GET",
+        cache: "no-store",
       });
     },
 

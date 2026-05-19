@@ -146,6 +146,20 @@ export type RealtimeServerEvent =
     }
   | { event: "error"; data: { type: "error"; code: string; message: string } };
 
+export type SessionReportTurn = {
+  questionIndex: number;
+  questionId: string;
+  questionText: string;
+  answerText: string | null;
+  answerSource: "text" | "voice" | null;
+  score: number | null;
+  confidence: number | null;
+  dimensionScores: Record<string, number>;
+  strengths: string[];
+  improvements: string[];
+  feedback: string | null;
+};
+
 export type SessionReport = {
   sessionId: string;
   status: string;
@@ -158,6 +172,7 @@ export type SessionReport = {
   dimensionAverages: Record<string, number>;
   confidenceAverage: number | null;
   recommendation: string;
+  turns: SessionReportTurn[];
 };
 
 export type SessionListItem = {
