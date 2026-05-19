@@ -5,7 +5,12 @@ import { humanizeError, type HumanError } from "../../../lib/errors/humanize";
 import { ErrorBanner } from "../../shared/components/ErrorBanner";
 
 type Props = {
-  onStarted: (sessionId: string, firstQuestionId: string, firstQuestionText: string) => void;
+  onStarted: (
+    sessionId: string,
+    firstQuestionId: string,
+    firstQuestionText: string,
+    interviewMode: "text" | "voice"
+  ) => void;
   presetToken?: string;
   showTokenField?: boolean;
 };
@@ -44,7 +49,12 @@ export function StartInterviewForm({ onStarted, presetToken, showTokenField = tr
         throw new Error("La sesión no trae primera pregunta");
       }
 
-      onStarted(session.id, firstQuestion.id, firstQuestion.text ?? "Pregunta actual");
+      onStarted(
+        session.id,
+        firstQuestion.id,
+        firstQuestion.text ?? "Pregunta actual",
+        session.interviewMode ?? "voice"
+      );
     } catch (err) {
       setErrorState(humanizeError(err));
     } finally {

@@ -38,10 +38,11 @@ export function TurnPanel({
   initialQuestionId,
   initialQuestionText,
   initialMessages,
-  interviewMode = "voice",
+  interviewMode: initialInterviewMode,
   onCompleted,
 }: Props) {
   const interviewApi = useInterviewApi();
+  const [interviewMode, setInterviewMode] = useState<TurnMode>(initialInterviewMode ?? "voice");
   const [messages, setMessages] = useState<InterviewThreadMessage[]>(
     () =>
       initialMessages ??
@@ -78,6 +79,9 @@ export function TurnPanel({
           index: Math.max(0, session.currentQuestionIndex ?? 0),
           total: session.totalQuestions ?? null,
         });
+        if (session.interviewMode === "text" || session.interviewMode === "voice") {
+          setInterviewMode(session.interviewMode);
+        }
       } catch {
         if (!active) return;
       }
@@ -88,6 +92,12 @@ export function TurnPanel({
       active = false;
     };
   }, [sessionId, interviewApi, initialMessages]);
+
+  useEffect(() => {
+    if (initialInterviewMode) {
+      setInterviewMode(initialInterviewMode);
+    }
+  }, [initialInterviewMode]);
 
   const appendUserAnswer = useCallback((answer: Pick<InterviewAnswer, "questionId" | "text" | "source">) => {
     setMessages((prev) => [

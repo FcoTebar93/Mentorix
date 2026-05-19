@@ -53,6 +53,11 @@ export class StartSessionFromLinkCase {
       return sameLink && sameAlias && isActive;
     });
     if (duplicatedSession) {
+      const templateMode = template.interviewMode ?? "voice";
+      if (duplicatedSession.interviewMode !== templateMode) {
+        duplicatedSession.interviewMode = templateMode;
+        await this.sessions.save(duplicatedSession);
+      }
       return duplicatedSession;
     }
 

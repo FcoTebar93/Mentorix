@@ -96,9 +96,9 @@ function CandidateStartRoute() {
     <StartInterviewForm
       presetToken={token ?? ""}
       showTokenField={false}
-      onStarted={(sessionId, firstQuestionId, firstQuestionText) =>
+      onStarted={(sessionId, firstQuestionId, firstQuestionText, interviewMode) =>
         navigate(`session/${encodeURIComponent(sessionId)}`, {
-          state: { questionId: firstQuestionId, questionText: firstQuestionText },
+          state: { questionId: firstQuestionId, questionText: firstQuestionText, interviewMode },
         })
       }
     />
@@ -118,9 +118,11 @@ function CandidateSessionRoute() {
       state: { celebrate: true },
     });
 
-  const { questionId: initialQuestionId, questionText: initialQuestionText } = parseInterviewSessionState(
-    location.state
-  );
+  const {
+    questionId: initialQuestionId,
+    questionText: initialQuestionText,
+    interviewMode,
+  } = parseInterviewSessionState(location.state);
 
   if (initialQuestionId) {
     return (
@@ -128,6 +130,7 @@ function CandidateSessionRoute() {
         sessionId={sessionId}
         initialQuestionId={initialQuestionId}
         initialQuestionText={initialQuestionText}
+        interviewMode={interviewMode}
         onCompleted={handleCompleted}
       />
     );
@@ -164,9 +167,11 @@ function SessionRunRoute() {
 
   if (!sessionId) return <Navigate to="/admin/sessions" replace />;
 
-  const { questionId: initialQuestionId, questionText: initialQuestionText } = parseInterviewSessionState(
-    location.state
-  );
+  const {
+    questionId: initialQuestionId,
+    questionText: initialQuestionText,
+    interviewMode,
+  } = parseInterviewSessionState(location.state);
 
   const handleBack = () => navigate("/admin/sessions");
   const handleCompleted = () =>
@@ -184,6 +189,7 @@ function SessionRunRoute() {
           sessionId={sessionId}
           initialQuestionId={initialQuestionId}
           initialQuestionText={initialQuestionText}
+          interviewMode={interviewMode}
           onCompleted={handleCompleted}
         />
       ) : (
