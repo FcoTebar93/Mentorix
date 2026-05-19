@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "./AuthContext";
+import { humanizeError } from "../../../lib/errors/humanize";
 
 type Props = {
   onSuccess: () => void;
@@ -22,7 +23,8 @@ export function LoginPage({ onSuccess }: Props) {
       await login(email.trim(), password);
       onSuccess();
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "No se pudo iniciar sesión");
+      const human = humanizeError(err);
+      setErrorMsg(human.message);
     } finally {
       setLoading(false);
     }
