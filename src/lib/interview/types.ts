@@ -53,6 +53,7 @@ export type InterviewAnswer = {
   questionId: string;
   source: "text" | "voice";
   text: string;
+  questionText?: string;
 };
 
 export type InterviewSession = {

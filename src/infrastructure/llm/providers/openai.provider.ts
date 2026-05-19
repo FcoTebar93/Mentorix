@@ -98,7 +98,7 @@ export class OpenAiProvider implements ILlmService {
         `Rubric: ${JSON.stringify(input.rubric.dimensions)}`,
         "Return ONLY JSON:",
         '{"score": number, "dimensionScores": {}, "strengths": string[], "improvements": string[], "confidence": number}',
-        "Rules: score 0..100, confidence 0..1.",
+        "Rules: score 0..100, each dimensionScores value 0..100 (same scale as score), confidence 0..1.",
       ].join("\n");
   
       const json = await this.callOpenAi(prompt);
