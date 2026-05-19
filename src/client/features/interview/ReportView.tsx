@@ -3,6 +3,7 @@ import { useInterviewApi } from "../../app/providers/ApiClientsProvider";
 import type { SessionReport } from "../../../lib/interview/types";
 import { ErrorBanner } from "../../shared/components/ErrorBanner";
 import { humanizeError, type HumanError } from "../../../lib/errors/humanize";
+import { formatConfidence, normalizePercentScale, usesTenPointScale } from "../../../lib/interview/report-scores";
 
 type Props = {
   sessionId: string;
@@ -150,7 +151,14 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
 
   const sortedDimensions = useMemo(() => {
     if (!report) return [];
-    return Object.entries(report.dimensionAverages).sort((a, b) => b[1] - a[1]);
+    const rawValues = Object.values(report.dimensionAverages);
+    const fromTenPointScale = usesTenPointScale(rawValues);
+    return Object.entries(report.dimensionAverages)
+      .map(([key, value]) => [
+        key,
+        normalizePercentScale(value, fromTenPointScale),
+      ] as const)
+      .sort((a, b) => b[1] - a[1]);
   }, [report]);
 
   const phase: Phase = !minTimeReached ? "celebrating" : !report ? "analyzing" : "ready";
@@ -185,9 +193,7 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
           <div className="report-hero-meta-row">
             <span>Estado: {report.status}</span>
             <span>Respuestas: {report.evaluatedAnswers}</span>
-            <span>
-              Confianza media: {report.confidenceAverage !== null ? report.confidenceAverage : "—"}
-            </span>
+            <span>Confianza media: {formatConfidence(report.confidenceAverage)}</span>
           </div>
         </div>
       </section>

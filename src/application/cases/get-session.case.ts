@@ -1,4 +1,5 @@
 import type { InterviewSessionRepository } from "../ports/repositories.js";
+import { normalizePercentScale, usesTenPointScale } from "../../lib/interview/report-scores.js";
 
 export interface GetSessionReportQuery {
   sessionId: string;
@@ -41,6 +42,11 @@ export class GetSessionReportCase {
       new Set(evaluations.flatMap((e) => e.improvements ?? []).filter(Boolean))
     );
   
+    const allDimensionValues = evaluations.flatMap((ev) =>
+      Object.values(ev.dimensionScores ?? {}).filter((value) => Number.isFinite(value))
+    );
+    const dimensionScaleIsTenPoint = usesTenPointScale(allDimensionValues);
+
     const dimensionAcc: Record<string, { sum: number; count: number }> = {};
     for (const ev of evaluations) {
       const ds = ev.dimensionScores ?? {};
@@ -51,10 +57,11 @@ export class GetSessionReportCase {
         dimensionAcc[key].count += 1;
       }
     }
-  
+
     const dimensionAverages: Record<string, number> = {};
     for (const [key, acc] of Object.entries(dimensionAcc)) {
-      dimensionAverages[key] = Math.round(acc.sum / acc.count);
+      const rawAverage = acc.sum / acc.count;
+      dimensionAverages[key] = normalizePercentScale(rawAverage, dimensionScaleIsTenPoint);
     }
   
     const confidences = evaluations
