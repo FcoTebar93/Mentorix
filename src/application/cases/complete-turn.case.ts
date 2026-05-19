@@ -65,8 +65,15 @@ export class CompleteTurnCase {
         this.assertResumeForSameTurn(current, command, lastAnswerForQuestion);
       }
 
-      const evaluationExists = this.hasEvaluationForLastAnswer(current);
-      if (current.status === "ASKING" || (current.status === "EVALUATING" && !evaluationExists)) {
+      const afterSubmit = await trace.step("reload_session", () =>
+        this.sessions.getById(command.sessionId)
+      );
+      if (!afterSubmit) throw new Error("SESSION_NOT_FOUND");
+
+      const evaluationExists = this.hasEvaluationForLastAnswer(afterSubmit);
+      const shouldEvaluate =
+        afterSubmit.status === "EVALUATING" && !evaluationExists;
+      if (shouldEvaluate) {
         await trace.step("evaluate_answer", () =>
           this.evaluateAnswer.execute({
             sessionId: command.sessionId,

@@ -43,6 +43,8 @@ export interface SessionAnswer {
   source: "voice" | "text";
   text: string;
   receivedAt: ISODateString;
+  /** Texto de la pregunta en el momento de responder (respaldo si questions[] se pierde). */
+  questionText?: string;
 }
 
 export interface SessionEvaluation {

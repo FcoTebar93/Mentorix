@@ -1,7 +1,11 @@
 import type { InterviewSessionRepository } from "../ports/repositories.js";
 import type { SessionReport } from "../../lib/interview/types.js";
-import { buildSessionReportTurns, pickGlobalThemes } from "../../lib/interview/report-builder.js";
-import { normalizePercentScale, usesTenPointScale } from "../../lib/interview/report-scores.js";
+import {
+  buildSessionReportTurns,
+  computeDimensionAverages,
+  pickGlobalThemes,
+} from "../../lib/interview/report-builder.js";
+import { normalizeScoreValue } from "../../lib/interview/report-scores.js";
 
 export interface GetSessionReportQuery {
   sessionId: string;
@@ -20,31 +24,14 @@ export class GetSessionReportCase {
     }
 
     const evaluations = session.evaluations ?? [];
-    const scores = evaluations.map((e) => e.score).filter((s) => Number.isFinite(s));
+    const scores = evaluations
+      .map((e) => e.score)
+      .filter((s) => Number.isFinite(s))
+      .map((s) => normalizeScoreValue(s));
     const overallScore =
       scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
 
-    const allDimensionValues = evaluations.flatMap((ev) =>
-      Object.values(ev.dimensionScores ?? {}).filter((value) => Number.isFinite(value))
-    );
-    const dimensionScaleIsTenPoint = usesTenPointScale(allDimensionValues);
-
-    const dimensionAcc: Record<string, { sum: number; count: number }> = {};
-    for (const ev of evaluations) {
-      const ds = ev.dimensionScores ?? {};
-      for (const [key, value] of Object.entries(ds)) {
-        if (!Number.isFinite(value)) continue;
-        if (!dimensionAcc[key]) dimensionAcc[key] = { sum: 0, count: 0 };
-        dimensionAcc[key].sum += value;
-        dimensionAcc[key].count += 1;
-      }
-    }
-
-    const dimensionAverages: Record<string, number> = {};
-    for (const [key, acc] of Object.entries(dimensionAcc)) {
-      const rawAverage = acc.sum / acc.count;
-      dimensionAverages[key] = normalizePercentScale(rawAverage, dimensionScaleIsTenPoint);
-    }
+    const dimensionAverages = computeDimensionAverages(session);
 
     const confidences = evaluations.map((e) => e.confidence).filter((c) => Number.isFinite(c));
     const confidenceAverage =
@@ -52,7 +39,7 @@ export class GetSessionReportCase {
         ? Number((confidences.reduce((a, b) => a + b, 0) / confidences.length).toFixed(2))
         : null;
 
-    const turns = buildSessionReportTurns(session, dimensionScaleIsTenPoint);
+    const turns = buildSessionReportTurns(session);
 
     const strengths = pickGlobalThemes(evaluations.map((e) => e.strengths ?? []));
     const improvements = pickGlobalThemes(evaluations.map((e) => e.improvements ?? []));

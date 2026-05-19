@@ -22,12 +22,14 @@ export class SubmitAnswerCase {
     if (!stored) throw new Error("SESSION_NOT_FOUND");
 
     const session = new InterviewSession(stored);
+    const question = session.state.questions.find((item) => item.id === command.questionId);
     const answer: SessionAnswer = {
       id: this.ids.uuid(),
       questionId: command.questionId,
       source: command.source,
       text: command.text,
       receivedAt: this.clock.nowISO(),
+      questionText: question?.text,
     };
 
     session.receiveAnswer(answer);

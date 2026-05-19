@@ -2,6 +2,7 @@ import { InterviewSession } from "../../domain/interview/session/session.aggrega
 import type { InterviewSessionRepository, InterviewTemplateRepository } from "../ports/repositories.js";
 import type { Clock, ILlmServiceFactory, IdGenerator } from "../ports/services.js";
 import { TimingTrace } from "../../lib/observability/timing.js";
+import { normalizeDimensionScores, normalizeScoreValue } from "../../lib/interview/report-scores.js";
 
 export interface EvaluateAnswerCommand {
   sessionId: string;
@@ -58,11 +59,17 @@ export class EvaluateAnswerCase {
         throw new Error("LLM_EVALUATION_FAILED");
       }
 
+      const normalizedDimensions = normalizeDimensionScores(draft.dimensionScores ?? {});
+      const normalizedScore =
+        Number.isFinite(draft.score) && draft.score > 10 && draft.score <= 100
+          ? Math.round(draft.score)
+          : normalizeScoreValue(draft.score);
+
       session.storeEvaluation({
         id: this.ids.uuid(),
         answerId: lastAnswer.id,
-        score: draft.score,
-        dimensionScores: draft.dimensionScores,
+        score: normalizedScore,
+        dimensionScores: normalizedDimensions,
         strengths: draft.strengths,
         improvements: draft.improvements,
         confidence: draft.confidence,

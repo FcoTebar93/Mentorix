@@ -3,13 +3,9 @@ import { useInterviewApi } from "../../app/providers/ApiClientsProvider";
 import type { SessionReport } from "../../../lib/interview/types";
 import { ErrorBanner } from "../../shared/components/ErrorBanner";
 import { humanizeError, type HumanError } from "../../../lib/errors/humanize";
-import { formatDimensionLabel } from "../../../lib/interview/report-builder";
-import {
-  formatConfidence,
-  normalizePercentScale,
-  normalizeSessionReport,
-  usesTenPointScale,
-} from "../../../lib/interview/report-scores";
+import { enrichReportWithSession, formatDimensionLabel } from "../../../lib/interview/report-builder";
+import { formatConfidence, normalizeSessionReport } from "../../../lib/interview/report-scores";
+import type { InterviewSessionProps } from "../../../domain/interview/session/types";
 import { ReportTurnCard } from "./ReportTurnCard";
 
 type Props = {
@@ -143,7 +139,16 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
       try {
         const res = await interviewApi.getReport(sessionId);
         if (!active) return;
-        setReport(normalizeSessionReport(res.data));
+
+        let payload = res.data;
+        const needsTurns = !(payload.turns?.length) && (payload.evaluatedAnswers ?? 0) > 0;
+        if (needsTurns) {
+          const sessionRes = await interviewApi.getSession(sessionId);
+          if (!active) return;
+          payload = enrichReportWithSession(payload, sessionRes.data as InterviewSessionProps);
+        }
+
+        setReport(normalizeSessionReport(payload));
       } catch (err) {
         if (!active) return;
         setErrorState(humanizeError(err));
@@ -158,13 +163,8 @@ export function ReportView({ sessionId, celebrate = false }: Props) {
 
   const sortedDimensions = useMemo(() => {
     if (!report) return [];
-    const rawValues = Object.values(report.dimensionAverages);
-    const fromTenPointScale = usesTenPointScale(rawValues);
-    return Object.entries(report.dimensionAverages)
-      .map(([key, value]) => [
-        key,
-        normalizePercentScale(value, fromTenPointScale),
-      ] as const)
+    return Object.entries(report.dimensionAverages ?? {})
+      .map(([key, value]) => [key, value] as const)
       .sort((a, b) => b[1] - a[1]);
   }, [report]);
 
