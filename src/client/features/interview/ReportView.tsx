@@ -3,7 +3,9 @@ import { useInterviewApi } from "../../app/providers/ApiClientsProvider";
 import type { SessionReport } from "../../../lib/interview/types";
 import { ErrorBanner } from "../../shared/components/ErrorBanner";
 import { humanizeError, type HumanError } from "../../../lib/errors/humanize";
+import { formatDimensionLabel } from "../../../lib/interview/report-builder";
 import { formatConfidence, normalizePercentScale, usesTenPointScale } from "../../../lib/interview/report-scores";
+import { ReportTurnCard } from "./ReportTurnCard";
 
 type Props = {
   sessionId: string;
@@ -88,6 +90,98 @@ function ClosingCelebration() {
       <h2 className="closing-title">¡Entrevista completada!</h2>
       <p className="closing-subtitle">Gracias por participar.</p>
     </section>
+  );
+}
+
+function ReportTurnCard({ turn }: { turn: SessionReportTurn }) {
+  const bucket = bucketForScore(turn.score);
+  const dimensionEntries = Object.entries(turn.dimensionScores);
+
+  return (
+    <article className="report-turn-card">
+      <header className="report-turn-header">
+        <h4 className="title-reset">Pregunta {turn.questionIndex}</h4>
+        <span className="report-turn-score">
+          <span className={`dimension-bar-score score-${bucket}`}>
+            {turn.score !== null ? `${turn.score}/100` : "Sin nota"}
+          </span>
+          {turn.confidence !== null ? (
+            <span className="message-meta">Confianza {formatConfidence(turn.confidence)}</span>
+          ) : null}
+        </span>
+      </header>
+
+      <div className="report-turn-block">
+        <p className="report-turn-label">Pregunta</p>
+        <p className="report-turn-text">{turn.questionText}</p>
+      </div>
+
+      <div className="report-turn-block">
+        <p className="report-turn-label">
+          Respuesta{turn.answerSource === "voice" ? " (voz)" : turn.answerSource === "text" ? " (texto)" : ""}
+        </p>
+        <p className="report-turn-text">{turn.answerText ?? "Sin respuesta registrada."}</p>
+      </motion-div>
+
+      {dimensionEntries.length ? (
+        <div className="report-turn-block">
+          <p className="report-turn-label">Nota por dimensión</p>
+          <div className="stack-xs">
+            {dimensionEntries.map(([key, value]) => {
+              const dimBucket = bucketForScore(value);
+              return (
+                <div key={key} className="dimension-bar-row">
+                  <div className="dimension-bar-info">
+                    <span className="dimension-bar-label">{formatDimensionLabel(key)}</span>
+                    <div className="dimension-bar-track">
+                      <div
+                        className={`dimension-bar-fill is-${dimBucket}`}
+                        style={{ width: `${value}%` }}
+                      />
+                    </motion-div>
+                  </motion-div>
+                  <span className={`dimension-bar-score score-${dimBucket}`}>{value}</span>
+                </motion-div>
+              );
+            })}
+          </motion-div>
+        </motion-div>
+      ) : null}
+
+      <div className="report-turn-columns">
+        <div className="report-turn-block">
+          <p className="report-turn-label">Fortalezas de esta respuesta</p>
+          {turn.strengths.length ? (
+            <ul className="report-turn-list">
+              {turn.strengths.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-reset">—</p>
+          )}
+        </motion-div>
+        <div className="report-turn-block">
+          <p className="report-turn-label">Aspectos a mejorar</p>
+          {turn.improvements.length ? (
+            <ul className="report-turn-list">
+              {turn.improvements.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-reset">—</p>
+          )}
+        </motion-div>
+      </motion-div>
+
+      {turn.feedback ? (
+        <div className="report-turn-block">
+          <p className="report-turn-label">Feedback del entrevistador</p>
+          <p className="report-turn-text">{turn.feedback}</p>
+        </motion-div>
+      ) : null}
+    </article>
   );
 }
 

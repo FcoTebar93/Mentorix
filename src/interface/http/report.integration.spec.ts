@@ -34,8 +34,38 @@ describe("HTTP report routes", { timeout: 15000 }, () => {
       status: "COMPLETED",
       currentQuestionIndex: 2,
       totalQuestions: 2,
-      questions: [],
-      answers: [],
+      questions: [
+        {
+          id: "q1",
+          index: 1,
+          text: "Explica el patrón Repository.",
+          generatedByModel: "mock",
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: "q2",
+          index: 2,
+          text: "¿Cómo diseñarías caché distribuida?",
+          generatedByModel: "mock",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      answers: [
+        {
+          id: "a1",
+          questionId: "q1",
+          source: "text",
+          text: "Separa persistencia del dominio.",
+          receivedAt: new Date().toISOString(),
+        },
+        {
+          id: "a2",
+          questionId: "q2",
+          source: "text",
+          text: "Redis con TTL y claves por tenant.",
+          receivedAt: new Date().toISOString(),
+        },
+      ],
       evaluations: [
         {
           id: "e1",
@@ -85,6 +115,9 @@ describe("HTTP report routes", { timeout: 15000 }, () => {
       expect(body.data.improvements).toEqual(
         expect.arrayContaining(["profundidad", "más ejemplos"])
       );
+      expect(body.data.turns).toHaveLength(2);
+      expect(body.data.turns[0]?.answerText).toContain("persistencia");
+      expect(body.data.turns[0]?.strengths).toContain("claridad");
     } finally {
       await app.close();
     }
